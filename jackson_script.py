@@ -1,7 +1,7 @@
 # User credentials and booking preferences
 import os
-from datetime import datetime
 import time
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 from selenium import webdriver
@@ -12,11 +12,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 load_dotenv(".env.local")
 username = os.getenv("USERNAME")
 password = os.getenv("PASSWORD")
-booking_time = "12:30"
+days_in_advance = 2  # Number of days in advance to book
+booking_time = "10:00"
 min_duration = 60  # Minimum duration in minutes
 
 # Pre processing
 booking_time_dt = datetime.strptime(booking_time, "%H:%M")
+
+
+duration_mapping = {30: "30 min", 60: "1 hour", 90: "90 min", 120: "2 hours"}
 
 # Initialize the WebDriver
 driver = webdriver.Chrome()  # or webdriver.Firefox() if using Firefox
@@ -24,7 +28,9 @@ print("WebDriver initialized.")
 
 try:
     # Navigate to the login page
-    # driver.get('https://www.rec.us/login')  # Update with the actual login URL
+    # driver.get(
+    #     "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
+    # )
     # print("Navigated to login page.")
 
     # # Log in
@@ -48,6 +54,32 @@ try:
         EC.presence_of_element_located((By.CLASS_NAME, "swiper-slide"))
     )
     print("Page loaded successfully.")
+
+    # Open the date picker
+    print("Opening the date picker...")
+    date_picker_container = driver.find_element(
+        By.CLASS_NAME, "react-datepicker__input-container"
+    )
+    date_picker_input = date_picker_container.find_element(By.TAG_NAME, "input")
+    date_picker_input.click()
+    print("Date picker opened.")
+
+    # Calculate the target date
+    target_date = datetime.now() + timedelta(days=days_in_advance)
+    target_day = target_date.day
+
+    # Select the target date
+    print(f"Selecting date {target_date.strftime('%A, %B %d, %Y')}...")
+    date_elements = driver.find_elements(By.CLASS_NAME, "react-datepicker__day")
+    for date_element in date_elements:
+        if date_element.text == str(
+            target_day
+        ) and "react-datepicker__day--outside-month" not in (
+            date_element.get_attribute("class") or ""
+        ):
+            date_element.click()
+            print(f"Date {target_date.strftime('%A, %B %d, %Y')} selected.")
+            break
 
     # Find available slots
     slots = driver.find_elements(By.CLASS_NAME, "swiper-slide")
@@ -84,23 +116,19 @@ try:
 
                     # Select duration and participant
                     print("Attempting to select duration...")
+                    desired_duration_text = duration_mapping[min_duration]
+                    # Locate the duration dropdown button
                     duration_button = driver.find_element(
                         By.XPATH, "//label[text()='Duration']/following-sibling::button"
                     )
                     duration_button.click()
-                    print("Duration button clicked. Please select the desired duration.")
-
-                    # Select court (if necessary)
-                    # print("Attempting to select court...")
-                    # court_button = driver.find_element(
-                    #     By.XPATH,
-                    #     "//h6[text()='Select a court']/following-sibling::button",
-                    # )
-                    # court_button.click()
-                    # print("Court button clicked. Please select the desired court.")
-
-                    # add a little wait to debug
-                    time.sleep(5)
+                    print("Duration dropdown opened.")
+                    # Wait for the dropdown to open and locate the desired duration option
+                    desired_duration = driver.find_element(
+                        By.XPATH, f"//div[contains(text(), '{desired_duration_text}')]"
+                    )
+                    desired_duration.click()
+                    print(f"Duration {desired_duration_text} selected.")
 
                     # Click the book button
                     print("Attempting to click the book button...")
@@ -108,6 +136,8 @@ try:
                         By.XPATH, "//button[text()='Book']"
                     )
                     book_button.click()
+
+                    time.sleep(10)
                     print("Booking successful!")
                     break
 
