@@ -150,12 +150,26 @@ try:
                     desired_duration.click()
                     print(f"Duration {desired_duration_text} selected.")
 
-                    # Click the book button
+                    # Select the participant
+                    print("Selecting participant...")
+                    participant_button = driver.find_element(
+                        By.XPATH,
+                        "//h6[text()='Participant']/following-sibling::div/button",
+                    )
+                    participant_button.click()
+                    print("Participant button clicked.")
+
+                    account_owner_option = driver.find_element(
+                        By.XPATH, "//li[.//div[contains(text(), 'Oscar Courbit')]]"
+                    )
+                    account_owner_option.click()
+                    print("Account owner selected.")
+
                     print("Attempting to click the book button...")
+                    time.sleep(10)
                     book_button = driver.find_element(
                         By.XPATH, "//button[text()='Book']"
                     )
-                    time.sleep(10)
                     book_button.click()
 
                     print("Booking successful!")
