@@ -27,26 +27,46 @@ driver = webdriver.Chrome()  # or webdriver.Firefox() if using Firefox
 print("WebDriver initialized.")
 
 try:
+    if not username or not password:
+        raise ValueError("Username or password not found in environment variables.")
+
     # Navigate to the login page
-    # driver.get(
-    #     "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
-    # )
-    # print("Navigated to login page.")
-
-    # # Log in
-    # driver.find_element(By.ID, 'username_field_id').send_keys(username)  # Update with actual field ID
-    # print(f"Entered username: {username}")
-    # driver.find_element(By.ID, 'password_field_id').send_keys(password)  # Update with actual field ID
-    # print("Entered password.")
-    # driver.find_element(By.ID, 'login_button_id').click()  # Update with actual button ID
-    # print("Clicked login button.")
-    # We'll redefine the login process later
-
-    # Navigate to the booking page
     driver.get(
         "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
     )
-    print("Navigated to booking page.")
+    print("Navigated to login page.")
+
+    # Click the menu button in the top right corner
+    driver.find_element(By.ID, "radix-:r0:").click()  # Click the menu button
+    print("Clicked menu button.")
+
+    # Wait for the login options to appear
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//div[contains(text(), 'Log In')]"))
+    )
+    print("Login options appeared.")
+
+    # Click the "Log In" option
+    driver.find_element(By.XPATH, "//div[contains(text(), 'Log In')]").click()
+    print("Clicked Log In option.")
+
+    # Wait for the login dialog to appear
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, "radix-:ri:"))
+    )
+    print("Login dialog appeared.")
+
+    # Enter username and password
+    driver.find_element(By.ID, "email").send_keys(username)  # Enter email
+    print(f"Entered username: {username}")
+    driver.find_element(By.ID, "password").send_keys(password)  # Enter password
+    print("Entered password.")
+
+    # Click the login submit button to validate login
+    driver.find_element(
+        By.XPATH, "//button[contains(text(), 'log in & continue')]"
+    ).click()
+    print("Clicked login submit button to validate login.")
 
     # Wait for the page to load
     print("Waiting for the page to load...")
@@ -135,9 +155,9 @@ try:
                     book_button = driver.find_element(
                         By.XPATH, "//button[text()='Book']"
                     )
+                    time.sleep(10)
                     book_button.click()
 
-                    time.sleep(10)
                     print("Booking successful!")
                     break
 
