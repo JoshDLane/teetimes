@@ -166,13 +166,49 @@ try:
                     print("Account owner selected.")
 
                     print("Attempting to click the book button...")
-                    time.sleep(10)
                     book_button = driver.find_element(
                         By.XPATH, "//button[text()='Book']"
                     )
                     book_button.click()
+                    print("Booking clicked.")
 
-                    print("Booking successful!")
+                    # Locate and click the "Send Code" button
+                    print("Attempting to click the 'Send Code' button...")
+                    # Add an explicit wait to ensure the button is present
+                    WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[text()='Send Code']"))
+                    )
+                    send_code_button = driver.find_element(
+                        By.XPATH, "//button[text()='Send Code']"
+                    )
+                    send_code_button.click()
+                    print("'Send Code' button clicked. Waiting for code verification...")
+
+                    # Wait for user to manually enter the code
+                    verification_code = input(
+                        "Please enter the code sent to your phone and press Enter to continue..."
+                    )
+
+                    # Locate the verification code input field and enter the code
+                    print("Entering the verification code...")
+                    verification_input = driver.find_element(By.ID, "totp")
+                    verification_input.send_keys(verification_code)
+                    print("Verification code entered.")
+
+                    # Locate and click the "Confirm" button
+                    print("Attempting to click the 'Confirm' button...")
+                    WebDriverWait(driver, 2).until(
+                        EC.element_to_be_clickable(
+                            (By.XPATH, "//button[contains(text(), 'Confirm')]")
+                        )
+                    )  # Wait for the button to be clickable
+                    confirm_button = driver.find_element(
+                        By.XPATH, "//button[contains(text(), 'Confirm')]"
+                    )
+                    confirm_button.click()
+                    print("Reservation confirmed.")
+
+                    time.sleep(20)
                     break
 
     else:
