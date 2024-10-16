@@ -2,11 +2,14 @@ jackson:
   url: "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
   days_in_advance: 2
   opening_time: "18:45"
-  min_booking_time: "10:00"
+  min_booking_time: "17:00"
   min_duration: 60
 potrero:
   url: "https://www.rec.us/locations/032e605f-6065-4794-9675-b1bbebe18159?tab=book-now"
-  days_in_advance: 2
-  opening_time: "18:45"
-  min_booking_time: "10:00"
+  days_in_advance: 7
+  opening_time: "8:00"
+  min_booking_time: "17:00"
   min_duration: 60
+
+# TODO add ideal duration, and try to run both courts in parallel
+# TODO add the two courts for potrero
