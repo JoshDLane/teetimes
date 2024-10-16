@@ -141,13 +141,19 @@ def book_reservation(
                     break
 
             # Find available slots
-            slots = driver.find_elements(By.CLASS_NAME, "swiper-slide")
+            slots = driver.find_elements(By.CSS_SELECTOR, ".swiper-slide")
             print(f"Found {len(slots)} available slots.")
 
             while True:
                 for slot in slots:
                     # Check if the slot contains the expected elements
                     try:
+                        if not slot.is_displayed():
+                            print(f"Slot {slot} is not displayed properly")
+                            driver.execute_script(
+                                "arguments[0].scrollIntoView(true);", slot
+                            )
+                            # time.sleep(0.1)
                         time_text = slot.find_element(By.TAG_NAME, "p").text
                         durations = slot.find_elements(
                             By.CLASS_NAME, "text-neutral-600"
@@ -184,7 +190,9 @@ def book_reservation(
 
                                     # Select duration and participant
                                     print("Attempting to select duration...")
-                                    desired_duration_text = duration_mapping[min_duration]
+                                    desired_duration_text = duration_mapping[
+                                        min_duration
+                                    ]
                                     # Locate the duration dropdown button
                                     duration_button = driver.find_element(
                                         By.XPATH,
@@ -226,7 +234,9 @@ def book_reservation(
                                     print("Booking clicked.")
 
                                     # Locate and click the "Send Code" button
-                                    print("Attempting to click the 'Send Code' button...")
+                                    print(
+                                        "Attempting to click the 'Send Code' button..."
+                                    )
                                     # Add an explicit wait to ensure the button is present
                                     WebDriverWait(driver, 1).until(
                                         EC.element_to_be_clickable(
@@ -248,7 +258,9 @@ def book_reservation(
 
                                     # Locate the verification code input field and enter the code
                                     print("Entering the verification code...")
-                                    verification_input = driver.find_element(By.ID, "totp")
+                                    verification_input = driver.find_element(
+                                        By.ID, "totp"
+                                    )
                                     verification_input.send_keys(verification_code)
                                     print("Verification code entered.")
 
@@ -263,7 +275,8 @@ def book_reservation(
                                         )
                                     )  # Wait for the button to be clickable
                                     confirm_button = driver.find_element(
-                                        By.XPATH, "//button[contains(text(), 'Confirm')]"
+                                        By.XPATH,
+                                        "//button[contains(text(), 'Confirm')]",
                                     )
                                     confirm_button.click()
                                     print("Reservation confirmed.")
