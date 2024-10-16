@@ -1,0 +1,6 @@
+jackson:
+  url: "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
+  days_in_advance: 2
+  opening_time: "12:00"
+  min_booking_time: "17:00"
+  min_duration: 60

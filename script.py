@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime, timedelta
 
+import yaml
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -14,6 +15,10 @@ load_dotenv(".env.local")
 username = os.getenv("USERNAME")
 password = os.getenv("PASSWORD")
 
+# Load configuration from YAML file
+with open("courts.yaml", "r") as file:
+    config = yaml.safe_load(file)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -21,7 +26,11 @@ logging.basicConfig(
 
 
 def book_reservation(
-    days_in_advance=2, booking_time="17:00", min_duration=60, retries=5
+    url: str,
+    days_in_advance: int,
+    booking_time: str,
+    min_duration: int,
+    n_attempts: int,
 ):
     """
     Automates the reservation booking process.
@@ -37,9 +46,9 @@ def book_reservation(
 
     duration_mapping = {30: "30 min", 60: "1 hour", 90: "90 min", 120: "2 hours"}
 
-    attempt = 0  # Initialize attempt counter
-    while attempt < retries:  # Wrap the entire process in a retry loop
-        attempt += 1  # Increment attempt counter
+    attempt = 0
+    while attempt < n_attempts:
+        attempt += 1
         try:
             if not username or not password:
                 raise ValueError(
@@ -51,9 +60,7 @@ def book_reservation(
             print("WebDriver initialized.")
 
             # Navigate to the login page
-            driver.get(
-                "https://www.rec.us/locations/360736ab-a655-478d-aab5-4e54fea0c140?tab=book-now"
-            )
+            driver.get(url)
             print("Navigated to login page.")
 
             # Click the menu button in the top right corner
@@ -129,11 +136,20 @@ def book_reservation(
 
             while True:
                 for slot in slots:
-                    time_text = slot.find_element(By.TAG_NAME, "p").text
-                    durations = slot.find_elements(By.CLASS_NAME, "text-neutral-600")
-                    print(
-                        f"Checking slot with time: {time_text} and durations: {[duration.text for duration in durations]}"
-                    )
+                    # Check if the slot contains the expected elements
+                    try:
+                        time_text = slot.find_element(By.TAG_NAME, "p").text
+                        durations = slot.find_elements(
+                            By.CLASS_NAME, "text-neutral-600"
+                        )
+                        print(
+                            f"Checking slot with time: {time_text} and durations: {[duration.text for duration in durations]}"
+                        )
+                    except Exception:
+                        logging.error(
+                            "Can't access slot elements. We probably explored all of them."
+                        )
+                        raise
 
                     # Convert time_text to a datetime object for comparison
                     slot_time = datetime.strptime(
@@ -256,7 +272,7 @@ def book_reservation(
             logging.error(f"Attempt {attempt} failed: {e}")
             if "Connection refused" in str(e):
                 logging.warning("Connection refused. Retrying...")
-            if attempt < retries:
+            if attempt < n_attempts:
                 logging.info("Retrying...")
                 time.sleep(5)  # Wait before retrying
             else:
@@ -269,4 +285,11 @@ def book_reservation(
 
 
 if __name__ == "__main__":
-    book_reservation()
+    jackson_config = config["jackson"]
+    book_reservation(
+        url=jackson_config["url"],
+        days_in_advance=jackson_config["days_in_advance"],
+        booking_time=jackson_config["min_booking_time"],
+        min_duration=jackson_config["min_duration"],
+        n_attempts=2,
+    )
