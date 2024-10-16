@@ -155,126 +155,127 @@ def book_reservation(
                         print(
                             f"Checking slot with time: {time_text} and durations: {[duration.text for duration in durations]}"
                         )
-                    except Exception:
-                        logging.error(
-                            "Can't access slot elements. We probably explored all of them."
-                        )
-                        raise
 
-                    # Convert time_text to a datetime object for comparison
-                    slot_time = datetime.strptime(
-                        time_text, "%I:%M %p"
-                    )  # Adjust format as needed
+                        # Convert time_text to a datetime object for comparison
+                        slot_time = datetime.strptime(
+                            time_text, "%I:%M %p"
+                        )  # Adjust format as needed
 
-                    # Check if the slot matches the criteria
-                    if slot_time >= booking_time_dt:
-                        print(
-                            f"Slot {time_text} matches booking time {booking_time}. Checking durations..."
-                        )
-                        for duration in durations:
-                            if int(duration.text) >= min_duration:
-                                print(
-                                    f"Duration {duration.text} is sufficient (>= {min_duration} minutes). Clicking the slot..."
-                                )
-                                slot.click()  # Click the slot
-
-                                # Wait for the booking dialog to appear
-                                print("Waiting for the booking dialog to appear...")
-                                WebDriverWait(driver, 1).until(
-                                    EC.presence_of_element_located(
-                                        (By.CLASS_NAME, "fixed")
+                        # Check if the slot matches the criteria
+                        if slot_time >= booking_time_dt:
+                            print(
+                                f"Slot {time_text} matches booking time {booking_time}. Checking durations..."
+                            )
+                            for duration in durations:
+                                if int(duration.text) >= min_duration:
+                                    print(
+                                        f"Duration {duration.text} is sufficient (>= {min_duration} minutes). Clicking the slot..."
                                     )
-                                )
-                                print("Booking dialog appeared.")
+                                    slot.click()  # Click the slot
 
-                                # Select duration and participant
-                                print("Attempting to select duration...")
-                                desired_duration_text = duration_mapping[min_duration]
-                                # Locate the duration dropdown button
-                                duration_button = driver.find_element(
-                                    By.XPATH,
-                                    "//label[text()='Duration']/following-sibling::button",
-                                )
-                                duration_button.click()
-                                print("Duration dropdown opened.")
-                                # Wait for the dropdown to open and locate the desired duration option
-                                desired_duration = driver.find_element(
-                                    By.XPATH,
-                                    f"//div[contains(text(), '{desired_duration_text}')]",
-                                )
-                                desired_duration.click()
-                                print(f"Duration {desired_duration_text} selected.")
-
-                                # Select the participant
-                                print("Selecting participant...")
-                                participant_button = driver.find_element(
-                                    By.XPATH,
-                                    "//h6[text()='Participant']/following-sibling::div/button",
-                                )
-                                participant_button.click()
-                                print("Participant button clicked.")
-
-                                account_owner_option = driver.find_element(
-                                    By.XPATH,
-                                    "//li[.//div[contains(text(), 'Oscar Courbit')]]",
-                                )
-                                account_owner_option.click()
-                                print("Account owner selected.")
-
-                                print("Attempting to click the book button...")
-                                book_button = WebDriverWait(driver, 1).until(
-                                    EC.element_to_be_clickable(
-                                        (By.XPATH, "//button[text()='Book']")
-                                    )
-                                )
-                                book_button.click()
-                                print("Booking clicked.")
-
-                                # Locate and click the "Send Code" button
-                                print("Attempting to click the 'Send Code' button...")
-                                # Add an explicit wait to ensure the button is present
-                                WebDriverWait(driver, 1).until(
-                                    EC.element_to_be_clickable(
-                                        (By.XPATH, "//button[text()='Send Code']")
-                                    )
-                                )
-                                send_code_button = driver.find_element(
-                                    By.XPATH, "//button[text()='Send Code']"
-                                )
-                                send_code_button.click()
-                                print(
-                                    "'Send Code' button clicked. Waiting for code verification..."
-                                )
-
-                                # Wait for user to manually enter the code
-                                verification_code = input(
-                                    "Please enter the verification code sent to your phone: "
-                                )
-
-                                # Locate the verification code input field and enter the code
-                                print("Entering the verification code...")
-                                verification_input = driver.find_element(By.ID, "totp")
-                                verification_input.send_keys(verification_code)
-                                print("Verification code entered.")
-
-                                # Locate and click the "Confirm" button
-                                print("Attempting to click the 'Confirm' button...")
-                                WebDriverWait(driver, 1).until(
-                                    EC.element_to_be_clickable(
-                                        (
-                                            By.XPATH,
-                                            "//button[contains(text(), 'Confirm')]",
+                                    # Wait for the booking dialog to appear
+                                    print("Waiting for the booking dialog to appear...")
+                                    WebDriverWait(driver, 1).until(
+                                        EC.presence_of_element_located(
+                                            (By.CLASS_NAME, "fixed")
                                         )
                                     )
-                                )  # Wait for the button to be clickable
-                                confirm_button = driver.find_element(
-                                    By.XPATH, "//button[contains(text(), 'Confirm')]"
-                                )
-                                confirm_button.click()
-                                print("Reservation confirmed.")
+                                    print("Booking dialog appeared.")
 
-                                time.sleep(20)
-                                break
+                                    # Select duration and participant
+                                    print("Attempting to select duration...")
+                                    desired_duration_text = duration_mapping[min_duration]
+                                    # Locate the duration dropdown button
+                                    duration_button = driver.find_element(
+                                        By.XPATH,
+                                        "//label[text()='Duration']/following-sibling::button",
+                                    )
+                                    duration_button.click()
+                                    print("Duration dropdown opened.")
+                                    # Wait for the dropdown to open and locate the desired duration option
+                                    desired_duration = driver.find_element(
+                                        By.XPATH,
+                                        f"//div[contains(text(), '{desired_duration_text}')]",
+                                    )
+                                    desired_duration.click()
+                                    print(f"Duration {desired_duration_text} selected.")
+
+                                    # Select the participant
+                                    print("Selecting participant...")
+                                    participant_button = driver.find_element(
+                                        By.XPATH,
+                                        "//h6[text()='Participant']/following-sibling::div/button",
+                                    )
+                                    participant_button.click()
+                                    print("Participant button clicked.")
+
+                                    account_owner_option = driver.find_element(
+                                        By.XPATH,
+                                        "//li[.//div[contains(text(), 'Oscar Courbit')]]",
+                                    )
+                                    account_owner_option.click()
+                                    print("Account owner selected.")
+
+                                    print("Attempting to click the book button...")
+                                    book_button = WebDriverWait(driver, 1).until(
+                                        EC.element_to_be_clickable(
+                                            (By.XPATH, "//button[text()='Book']")
+                                        )
+                                    )
+                                    book_button.click()
+                                    print("Booking clicked.")
+
+                                    # Locate and click the "Send Code" button
+                                    print("Attempting to click the 'Send Code' button...")
+                                    # Add an explicit wait to ensure the button is present
+                                    WebDriverWait(driver, 1).until(
+                                        EC.element_to_be_clickable(
+                                            (By.XPATH, "//button[text()='Send Code']")
+                                        )
+                                    )
+                                    send_code_button = driver.find_element(
+                                        By.XPATH, "//button[text()='Send Code']"
+                                    )
+                                    send_code_button.click()
+                                    print(
+                                        "'Send Code' button clicked. Waiting for code verification..."
+                                    )
+
+                                    # Wait for user to manually enter the code
+                                    verification_code = input(
+                                        "Please enter the verification code sent to your phone: "
+                                    )
+
+                                    # Locate the verification code input field and enter the code
+                                    print("Entering the verification code...")
+                                    verification_input = driver.find_element(By.ID, "totp")
+                                    verification_input.send_keys(verification_code)
+                                    print("Verification code entered.")
+
+                                    # Locate and click the "Confirm" button
+                                    print("Attempting to click the 'Confirm' button...")
+                                    WebDriverWait(driver, 1).until(
+                                        EC.element_to_be_clickable(
+                                            (
+                                                By.XPATH,
+                                                "//button[contains(text(), 'Confirm')]",
+                                            )
+                                        )
+                                    )  # Wait for the button to be clickable
+                                    confirm_button = driver.find_element(
+                                        By.XPATH, "//button[contains(text(), 'Confirm')]"
+                                    )
+                                    confirm_button.click()
+                                    print("Reservation confirmed.")
+
+                                    time.sleep(20)
+                                    break
+
+                    except Exception as e:
+                        logging.error(
+                            f"Error accessing slot elements: {e}. Continuing to next slot."
+                        )
+                        continue  # Continue to the next slot
 
                 else:
                     print("No suitable slots found.")
