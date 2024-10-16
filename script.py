@@ -27,6 +27,7 @@ logging.basicConfig(
 
 def book_reservation(
     url: str,
+    opening_time: str,
     days_in_advance: int,
     booking_time: str,
     min_duration: int,
@@ -36,14 +37,30 @@ def book_reservation(
     Automates the reservation booking process.
 
     Parameters:
+    - opening_time (str): Time to start the booking process (24-hour format, e.g., "08:00").
     - days_in_advance (int): Number of days in advance to book.
     - booking_time (str): Earliest booking time (24-hour format, e.g., "17:00").
     - min_duration (int): Minimum duration in minutes.
     - retries (int): Number of retry attempts in case of failure.
     """
     # Pre processing
-    booking_time_dt = datetime.strptime(booking_time, "%H:%M")
+    current_time = datetime.now()
+    opening_time_dt = datetime.strptime(opening_time, "%H:%M").replace(
+        year=current_time.year, month=current_time.month, day=current_time.day
+    )
 
+    # Calculate the time to wait until the opening time
+    wait_time = (opening_time_dt - current_time).total_seconds()
+    if wait_time > 0:
+        print(f"Waiting for {wait_time} seconds until the opening time...")
+        while wait_time > 0:
+            mins, secs = divmod(wait_time, 60)
+            time_format = f"{int(mins):02}:{int(secs):02}"
+            print(f"Time remaining: {time_format}", end="\r")
+            time.sleep(1)
+            wait_time -= 1
+
+    booking_time_dt = datetime.strptime(booking_time, "%H:%M")
     duration_mapping = {30: "30 min", 60: "1 hour", 90: "90 min", 120: "2 hours"}
 
     attempt = 0
@@ -288,6 +305,7 @@ if __name__ == "__main__":
     jackson_config = config["jackson"]
     book_reservation(
         url=jackson_config["url"],
+        opening_time=jackson_config["opening_time"],
         days_in_advance=jackson_config["days_in_advance"],
         booking_time=jackson_config["min_booking_time"],
         min_duration=jackson_config["min_duration"],
