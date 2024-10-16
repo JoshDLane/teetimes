@@ -311,12 +311,12 @@ def book_reservation(
 
 
 if __name__ == "__main__":
-    court_info = config["potrero"]
+    court_info = config["jackson"]
     book_reservation(
         url=court_info["url"],
         opening_time=court_info["opening_time"],
         days_in_advance=court_info["days_in_advance"],
         booking_time=court_info["min_booking_time"],
         min_duration=court_info["min_duration"],
-        n_attempts=1,
+        n_attempts=3,
     )
