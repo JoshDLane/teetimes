@@ -4,3 +4,9 @@ jackson:
   opening_time: "18:45"
   min_booking_time: "10:00"
   min_duration: 60
+potrero:
+  url: "https://www.rec.us/locations/032e605f-6065-4794-9675-b1bbebe18159?tab=book-now"
+  days_in_advance: 2
+  opening_time: "18:45"
+  min_booking_time: "10:00"
+  min_duration: 60

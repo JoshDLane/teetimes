@@ -85,7 +85,7 @@ def book_reservation(
             print("Clicked menu button.")
 
             # Wait for the login options to appear
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, 1).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//div[contains(text(), 'Log In')]")
                 )
@@ -97,7 +97,7 @@ def book_reservation(
             print("Clicked Log In option.")
 
             # Wait for the login dialog to appear
-            WebDriverWait(driver, 10).until(
+            WebDriverWait(driver, 1).until(
                 EC.presence_of_element_located((By.ID, "radix-:ri:"))
             )
             print("Login dialog appeared.")
@@ -113,13 +113,6 @@ def book_reservation(
                 By.XPATH, "//button[contains(text(), 'log in & continue')]"
             ).click()
             print("Clicked login submit button to validate login.")
-
-            # Wait for the page to load
-            print("Waiting for the page to load...")
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "swiper-slide"))
-            )
-            print("Page loaded successfully.")
 
             # Open the date picker
             print("Opening the date picker...")
@@ -187,7 +180,7 @@ def book_reservation(
 
                                 # Wait for the booking dialog to appear
                                 print("Waiting for the booking dialog to appear...")
-                                WebDriverWait(driver, 10).until(
+                                WebDriverWait(driver, 1).until(
                                     EC.presence_of_element_located(
                                         (By.CLASS_NAME, "fixed")
                                     )
@@ -229,8 +222,10 @@ def book_reservation(
                                 print("Account owner selected.")
 
                                 print("Attempting to click the book button...")
-                                book_button = driver.find_element(
-                                    By.XPATH, "//button[text()='Book']"
+                                book_button = WebDriverWait(driver, 1).until(
+                                    EC.element_to_be_clickable(
+                                        (By.XPATH, "//button[text()='Book']")
+                                    )
                                 )
                                 book_button.click()
                                 print("Booking clicked.")
@@ -238,7 +233,7 @@ def book_reservation(
                                 # Locate and click the "Send Code" button
                                 print("Attempting to click the 'Send Code' button...")
                                 # Add an explicit wait to ensure the button is present
-                                WebDriverWait(driver, 10).until(
+                                WebDriverWait(driver, 1).until(
                                     EC.element_to_be_clickable(
                                         (By.XPATH, "//button[text()='Send Code']")
                                     )
@@ -264,7 +259,7 @@ def book_reservation(
 
                                 # Locate and click the "Confirm" button
                                 print("Attempting to click the 'Confirm' button...")
-                                WebDriverWait(driver, 2).until(
+                                WebDriverWait(driver, 1).until(
                                     EC.element_to_be_clickable(
                                         (
                                             By.XPATH,
@@ -302,12 +297,12 @@ def book_reservation(
 
 
 if __name__ == "__main__":
-    jackson_config = config["jackson"]
+    court_info = config["potrero"]
     book_reservation(
-        url=jackson_config["url"],
-        opening_time=jackson_config["opening_time"],
-        days_in_advance=jackson_config["days_in_advance"],
-        booking_time=jackson_config["min_booking_time"],
-        min_duration=jackson_config["min_duration"],
-        n_attempts=2,
+        url=court_info["url"],
+        opening_time=court_info["opening_time"],
+        days_in_advance=court_info["days_in_advance"],
+        booking_time=court_info["min_booking_time"],
+        min_duration=court_info["min_duration"],
+        n_attempts=1,
     )
