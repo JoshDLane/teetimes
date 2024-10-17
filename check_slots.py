@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import time
 from datetime import datetime, timedelta
 
@@ -42,6 +43,22 @@ def send_pushbullet_notification(
             logging.error(f"Failed to send Pushbullet notification: {response.text}")
     except Exception as e:
         logging.error(f"Error sending Pushbullet notification: {e}")
+
+
+def send_macos_notification(message: str, title: str = "Court Slot Available!"):
+    """
+    Sends a local notification on macOS using osascript.
+
+    Parameters:
+    - message (str): The message to display in the notification.
+    - title (str): The title of the notification.
+    """
+    try:
+        script = f'display notification "{message}" with title "{title}"'
+        subprocess.run(["osascript", "-e", script], check=True)
+        logging.info("macOS notification sent successfully.")
+    except Exception as e:
+        logging.error(f"Error sending macOS notification: {e}")
 
 
 def check_slots(driver, url, court_name, target_date, booking_time_dt, min_duration):
@@ -112,7 +129,7 @@ def check_slots(driver, url, court_name, target_date, booking_time_dt, min_durat
                             f"For court {court_name}, on {target_date.strftime('%A, %d %B %Y')}, "
                             f"available slot at {time_text} for {duration_minutes} minutes."
                         )
-                        send_pushbullet_notification(message)
+                        send_macos_notification(message)
                         logging.info(f"Notification sent: {message}")
                         return  # Stop after finding the first matching slot
             except Exception as e:
