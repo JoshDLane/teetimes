@@ -8,6 +8,7 @@ import requests
 import yaml
 from dotenv import load_dotenv
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -28,7 +29,7 @@ logging.basicConfig(
 )
 
 # Define the path for the notification file
-INTERVAL_MINUTES = 10
+INTERVAL_MINUTES = 1
 NOTIFICATION_FILE_PATH = "notifications.log"  # Specify your desired file path here
 
 
@@ -170,9 +171,18 @@ def book_availability_checker(court_configs, interval_minutes):
     """
     while True:
         logging.info("Starting availability check...")
-        driver = (
-            webdriver.Chrome()
-        )  # Initialize WebDriver; ensure chromedriver is in PATH
+
+        # Set up Chrome options for headless mode
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")  # Run in headless mode
+        chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
+        chrome_options.add_argument(
+            "--disable-dev-shm-usage"
+        )  # Overcome limited resource problems
+
+        driver = webdriver.Chrome(
+            options=chrome_options
+        )  # Initialize WebDriver with options
         try:
             for court_name, url_info in court_configs.items():
                 url = url_info["url"]
