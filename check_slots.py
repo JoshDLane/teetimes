@@ -27,6 +27,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Define the path for the notification file
+NOTIFICATION_FILE_PATH = "notifications.log"  # Specify your desired file path here
+
 
 def send_pushbullet_notification(
     message: str, access_token: str = PUSHBULLET_ACCESS_TOKEN
@@ -52,7 +55,7 @@ def send_macos_notification(
     sound: str = "default"
 ):
     """
-    Sends a local notification on macOS using osascript.
+    Sends a local notification on macOS using osascript and logs it to a file.
 
     Parameters:
     - message (str): The message to display in the notification.
@@ -69,6 +72,10 @@ def send_macos_notification(
         
         subprocess.run(["osascript", "-e", script], check=True)
         logging.info("macOS notification sent successfully.")
+
+        # Write the notification message to the file
+        with open(NOTIFICATION_FILE_PATH, "a") as notification_file:
+            notification_file.write(f"{datetime.now()}: {message}\n")
     except Exception as e:
         logging.error(f"Error sending macOS notification: {e}")
 
