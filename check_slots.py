@@ -128,8 +128,12 @@ def check_slots(driver, url, court_name, target_date, booking_time_dt, min_durat
             EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".swiper-slide"))
         )
         logging.info(
-            f"Found {len(slots)} available slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
+            f"Found {len(slots)} slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
         )
+
+        notified_slots = []  # Track notified slots
+        error_slots = []  # Track slots with errors
+        unnotified_slots = []  # Track slots that do not meet requirements
 
         for i, slot in enumerate(slots):
             try:
@@ -148,18 +152,27 @@ def check_slots(driver, url, court_name, target_date, booking_time_dt, min_durat
                     ):
                         message = (
                             f"For court {court_name}, on {target_date.strftime('%A, %d %B %Y')}, "
-                            f"available slot at {time_text} for {duration_minutes} minutes."
+                            f"a matching slot is at {time_text} for {duration_minutes} minutes."
                         )
                         send_macos_notification(message)
-                        logging.info(f"Notification sent: {message}")
+                        logging.info(f"Notification sent for slot: {message}")
+                        notified_slots.append(f"{i}: {time_text}")  # Track notified slot with index
                         return  # Stop after finding the first matching slot
+                unnotified_slots.append(f"{i}: {time_text}")  # Track slots that do not meet requirements with index
             except Exception:
-                logging.error(f"Error processing slot {i}")
+                error_slots.append(i)
                 continue
+
+        # Log the results after processing all slots
+        if notified_slots:
+            logging.info(f"Notifications sent for the following slots: {', '.join(notified_slots)}")
+        if unnotified_slots:
+            logging.info(f"Slots that do not meet requirements: {', '.join(unnotified_slots)}")
+        if error_slots:
+            logging.error(f"Errors encountered for the following slots: {', '.join(error_slots)}")
 
     except Exception as e:
         logging.error(f"Error checking slots for {court_name} on {target_date}: {e}")
-
 
 def book_availability_checker(court_configs, interval_minutes):
     """
