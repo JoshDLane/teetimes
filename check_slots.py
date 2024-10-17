@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 
 # Define the path for the notification file
-INTERVAL_MINUTES = 10
+INTERVAL_MINUTES = 15
 NOTIFICATION_FILE_PATH = "notifications.log"  # Specify your desired file path here
 
 
