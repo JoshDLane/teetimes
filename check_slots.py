@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 
 # Define the path for the notification file
-INTERVAL_MINUTES = 1
+INTERVAL_MINUTES = 10
 NOTIFICATION_FILE_PATH = "notifications.log"  # Specify your desired file path here
 
 
@@ -131,7 +131,7 @@ def check_slots(driver, url, court_name, target_date, booking_time_dt, min_durat
             f"Found {len(slots)} available slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
         )
 
-        for slot in slots:
+        for i, slot in enumerate(slots):
             try:
                 if not slot.is_displayed():
                     driver.execute_script("arguments[0].scrollIntoView(true);", slot)
@@ -153,8 +153,8 @@ def check_slots(driver, url, court_name, target_date, booking_time_dt, min_durat
                         send_macos_notification(message)
                         logging.info(f"Notification sent: {message}")
                         return  # Stop after finding the first matching slot
-            except Exception as e:
-                logging.error(f"Error processing slot: {e}")
+            except Exception:
+                logging.error(f"Error processing slot {i}")
                 continue
 
     except Exception as e:
