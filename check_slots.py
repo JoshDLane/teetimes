@@ -45,16 +45,28 @@ def send_pushbullet_notification(
         logging.error(f"Error sending Pushbullet notification: {e}")
 
 
-def send_macos_notification(message: str, title: str = "Court Slot Available!"):
+def send_macos_notification(
+    message: str, 
+    title: str = "Court Slot Available!", 
+    subtitle: str = "", 
+    sound: str = "default"
+):
     """
     Sends a local notification on macOS using osascript.
 
     Parameters:
     - message (str): The message to display in the notification.
     - title (str): The title of the notification.
+    - subtitle (str): The subtitle of the notification.
+    - sound (str): The sound to play with the notification.
     """
     try:
         script = f'display notification "{message}" with title "{title}"'
+        if subtitle:
+            script += f' subtitle "{subtitle}"'
+        if sound:
+            script += f' sound name "{sound}"'
+        
         subprocess.run(["osascript", "-e", script], check=True)
         logging.info("macOS notification sent successfully.")
     except Exception as e:
