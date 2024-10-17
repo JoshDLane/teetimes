@@ -28,6 +28,7 @@ logging.basicConfig(
 )
 
 # Define the path for the notification file
+INTERVAL_MINUTES = 10
 NOTIFICATION_FILE_PATH = "notifications.log"  # Specify your desired file path here
 
 
@@ -49,10 +50,10 @@ def send_pushbullet_notification(
 
 
 def send_macos_notification(
-    message: str, 
-    title: str = "Court Slot Available!", 
-    subtitle: str = "", 
-    sound: str = "default"
+    message: str,
+    title: str = "Court Slot Available!",
+    subtitle: str = "",
+    sound: str = "default",
 ):
     """
     Sends a local notification on macOS using osascript and logs it to a file.
@@ -69,7 +70,7 @@ def send_macos_notification(
             script += f' subtitle "{subtitle}"'
         if sound:
             script += f' sound name "{sound}"'
-        
+
         subprocess.run(["osascript", "-e", script], check=True)
         logging.info("macOS notification sent successfully.")
 
@@ -201,11 +202,7 @@ def book_availability_checker(court_configs, interval_minutes):
 
 
 if __name__ == "__main__":
-    # Example configuration
-    court_configs = config  # Use the entire config as court configurations
-    check_interval = 1
-
     book_availability_checker(
-        court_configs=court_configs,
-        interval_minutes=check_interval,
+        court_configs=config,
+        interval_minutes=INTERVAL_MINUTES,
     )
