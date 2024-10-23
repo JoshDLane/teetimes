@@ -1,3 +1,4 @@
 selenium
+pydantic
 python-dotenv
 pyyaml
