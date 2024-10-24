@@ -256,9 +256,7 @@ def book_availability_checker(
             print(f"Court {court_name} and url info: {url_info}")
             url = url_info["url"]
             days_in_advance = url_info.get("days_in_advance", 7)
-            booking_time = url_info.get("min_booking_time", "17:00")
             min_duration = url_info.get("min_duration", 60)
-            booking_time_dt = datetime.strptime(booking_time, "%H:%M")
 
             # Set up Chrome options for headless mode
             chrome_options = Options()
@@ -274,6 +272,14 @@ def book_availability_checker(
 
             for day_offset in range(days_in_advance + 1):
                 target_date = datetime.now() + timedelta(days=day_offset)
+                # Determine if the target date is a weekday or weekend
+                if target_date.weekday() < 5:  # Monday to Friday
+                    booking_time = url_info.get("min_booking_time_weekday", "17:00")
+                else:  # Saturday and Sunday
+                    booking_time = url_info.get("min_booking_time_weekend", "8:00")
+                booking_time_dt = datetime.strptime(booking_time, "%H:%M")
+                print(f"Checking for {court_name} on {target_date} at {booking_time}")
+
                 try:
                     new_notifs = check_slots(
                         driver,
