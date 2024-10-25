@@ -1,5 +1,6 @@
 import logging
 import os
+import random
 import subprocess
 import time
 from datetime import datetime, timedelta
@@ -321,8 +322,16 @@ def book_availability_checker(
             driver.quit()
             logging.info("WebDriver closed.")
 
-        logging.info(f"Waiting for {interval_minutes} minutes before the next check...")
-        time.sleep(interval_minutes * 60)  # Wait for the specified interval
+        # Add randomness to the wait time
+        randomness = random.uniform(-0.1, 0.1)  # Randomness between -10% and +10%
+        wait_time = interval_minutes * 60 * (1 + randomness)  # Calculate the wait time
+        while wait_time > 0:
+            mins, secs = divmod(int(wait_time), 60)
+            time_format = f"{int(mins):02}:{int(secs):02}"
+            print(f"Time remaining: {time_format}", end="\r")
+            time.sleep(1)
+            wait_time -= 1
+        print()  # Move to the next line after countdown
 
 
 if __name__ == "__main__":
