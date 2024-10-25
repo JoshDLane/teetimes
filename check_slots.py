@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 
 # Define the path for the notification file
-INTERVAL_MINUTES = 15
+INTERVAL_MINUTES = 10
 NOTIFICATION_LOG_PATH = "logs/notifications.log"  # Updated path
 NOTIFICATION_JSON_PATH = "logs/notifications.jsonl"  # Updated path
 
@@ -237,6 +237,26 @@ def check_slots(
     return new_notifications
 
 
+def clean_outdated_notifications(
+    notified_messages: list[NotificationMessage],
+) -> list[NotificationMessage]:
+    """
+    Cleans out notifications that are from past dates.
+
+    Parameters:
+    - notified_messages (List[NotificationMessage]): List of notified messages.
+
+    Returns:
+    - List[NotificationMessage]: Filtered list of notifications with only future dates.
+    """
+    current_date = datetime.now().date()
+    return [
+        msg
+        for msg in notified_messages
+        if datetime.strptime(msg.date, "%A, %d %B %Y").date() >= current_date
+    ]
+
+
 def book_availability_checker(
     court_configs: dict[str, dict], interval_minutes: int
 ) -> None:
@@ -248,6 +268,7 @@ def book_availability_checker(
     - interval_minutes (int): Interval between attempts in minutes.
     """
     notified_messages = load_notified_messages()
+    notified_messages = clean_outdated_notifications(notified_messages)
     while True:
         logging.info("Starting availability check...")
 
