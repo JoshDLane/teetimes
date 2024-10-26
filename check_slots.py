@@ -169,53 +169,59 @@ def check_slots(
             break
 
     # Find available slots
-    slots = WebDriverWait(driver, 10).until(
-        EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".swiper-slide"))
-    )
-    logging.info(
-        f"Found {len(slots)} slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
-    )
+    court_sections = driver.find_elements(By.CLASS_NAME, "mb-4")
+    for section in court_sections:
+        # Check if the section is for Tennis
+        court_type = section.find_element(By.TAG_NAME, "p").text
+        if "Tennis" not in court_type:
+            logging.info(f"Skipping non-tennis section: {court_type}")
+            continue  # Skip non-tennis sections
 
-    notified_slots = []  # Track notified slots
-    error_slots = []  # Track slots with errors
-    unnotified_slots = []  # Track slots that do not meet requirements
-    already_notified_slots = []  # Track slots that have already been notified
+        slots = section.find_elements(By.CLASS_NAME, "swiper-slide")
+        logging.info(
+            f"Processing {len(slots)} slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
+        )
 
-    for i, slot in enumerate(slots):
-        try:
-            if not slot.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView(true);", slot)
+        notified_slots = []  # Track notified slots
+        error_slots = []  # Track slots with errors
+        unnotified_slots = []  # Track slots that do not meet requirements
+        already_notified_slots = []  # Track slots that have already been notified
 
-            time_text = slot.find_element(By.TAG_NAME, "p").text
-            slot_time = datetime.strptime(time_text, "%I:%M %p")
+        for i, slot in enumerate(slots):
+            try:
+                if not slot.is_displayed():
+                    driver.execute_script("arguments[0].scrollIntoView(true);", slot)
 
-            durations = slot.find_elements(By.CLASS_NAME, "text-neutral-600")
-            for duration in durations:
-                duration_minutes = int(duration.text)
-                if slot_time >= booking_time_dt and duration_minutes >= min_duration:
-                    message = (
-                        f"For court {court_name}, on {target_date.strftime('%A, %d %B %Y')}, "
-                        f"a matching slot is at {time_text} for {duration_minutes} minutes."
-                    )
-                    # Create a notification message
-                    notification = NotificationMessage(
-                        court_name=court_name,
-                        date=target_date.strftime("%A, %d %B %Y"),
-                        time=time_text,
-                        duration=duration_minutes,
-                    )
-                    # Check if the message has already been notified
-                    if notification not in notified_messages:
-                        send_macos_notification(message)
-                        notified_slots.append(f"{i}: {time_text}")
-                        new_notifications.append(notification)
-                    else:
-                        already_notified_slots.append(f"{i}: {time_text}")
-            # Append to unnotified_slots if no duration met
-            unnotified_slots.append(f"{i}: {time_text}")
-        except Exception:
-            error_slots.append(i)
-            continue
+                time_text = slot.find_element(By.TAG_NAME, "p").text
+                slot_time = datetime.strptime(time_text, "%I:%M %p")
+
+                durations = slot.find_elements(By.CLASS_NAME, "text-neutral-600")
+                for duration in durations:
+                    duration_minutes = int(duration.text)
+                    if slot_time >= booking_time_dt and duration_minutes >= min_duration:
+                        message = (
+                            f"For court {court_name}, on {target_date.strftime('%A, %d %B %Y')}, "
+                            f"a matching slot is at {time_text} for {duration_minutes} minutes."
+                        )
+                        # Create a notification message
+                        notification = NotificationMessage(
+                            court_name=court_name,
+                            date=target_date.strftime("%A, %d %B %Y"),
+                            time=time_text,
+                            duration=duration_minutes,
+                        )
+                        # Check if the message has already been notified
+                        if notification not in notified_messages:
+                            send_macos_notification(message)
+                            notified_slots.append(f"{i}: {time_text}")
+                            new_notifications.append(notification)
+                        else:
+                            already_notified_slots.append(f"{i}: {time_text}")
+                # Append to unnotified_slots if no duration met
+                unnotified_slots.append(f"{i}: {time_text}")
+            except Exception:
+                error_slots.append(i)
+                continue
 
     # Log the results after processing all slots
     if notified_slots:
