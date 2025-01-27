@@ -16,11 +16,6 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-# Load environment variables
-load_dotenv(".env.local")
-PUSHBULLET_ACCESS_TOKEN = os.getenv("PUSHBULLET_ACCESS_TOKEN", "")
-if not PUSHBULLET_ACCESS_TOKEN:
-    raise ValueError("PUSHBULLET_ACCESS_TOKEN must be set")
 
 # Load configuration from YAML file
 with open("courts.yaml", "r") as file:
@@ -64,23 +59,6 @@ def save_notified_messages(notified_messages: list[NotificationMessage]) -> None
     with open(NOTIFICATION_JSON_PATH, "w") as json_file:
         for msg in notified_messages:
             json_file.write(msg.model_dump_json() + "\n")
-
-
-def send_pushbullet_notification(
-    message: str, access_token: str = PUSHBULLET_ACCESS_TOKEN
-) -> None:
-    try:
-        data = {"type": "note", "title": "Court Slot Available!", "body": message}
-        headers = {"Access-Token": access_token, "Content-Type": "application/json"}
-        response = requests.post(
-            "https://api.pushbullet.com/v2/pushes", json=data, headers=headers
-        )
-        if response.status_code == 200:
-            logging.info("Pushbullet notification sent successfully.")
-        else:
-            logging.error(f"Failed to send Pushbullet notification: {response.text}")
-    except Exception as e:
-        logging.error(f"Error sending Pushbullet notification: {e}")
 
 
 def send_macos_notification(
