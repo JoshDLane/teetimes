@@ -5,9 +5,7 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 
-import requests
 import yaml
-from dotenv import load_dotenv
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -15,7 +13,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-
 
 # Load configuration from YAML file
 with open("courts.yaml", "r") as file:
@@ -56,6 +53,11 @@ def load_notified_messages() -> list[NotificationMessage]:
 
 
 def save_notified_messages(notified_messages: list[NotificationMessage]) -> None:
+    # Sort messages by date and then by court name
+    notified_messages.sort(
+        key=lambda msg: (datetime.strptime(msg.date, "%A, %d %B %Y"), msg.court_name)
+    )
+
     with open(NOTIFICATION_JSON_PATH, "w") as json_file:
         for msg in notified_messages:
             json_file.write(msg.model_dump_json() + "\n")
@@ -176,7 +178,10 @@ def check_slots(
                 durations = slot.find_elements(By.CLASS_NAME, "text-neutral-600")
                 for duration in durations:
                     duration_minutes = int(duration.text)
-                    if slot_time >= booking_time_dt and duration_minutes >= min_duration:
+                    if (
+                        slot_time >= booking_time_dt
+                        and duration_minutes >= min_duration
+                    ):
                         message = (
                             f"For court {court_name}, on {target_date.strftime('%A, %d %B %Y')}, "
                             f"a matching slot is at {time_text} for {duration_minutes} minutes."
