@@ -6,13 +6,20 @@ import time
 from datetime import datetime, timedelta
 
 import yaml
-from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
+from notifs import (
+    NOTIFICATION_JSON_PATH,
+    NOTIFICATION_LOG_PATH,
+    NotificationMessage,
+    load_notified_messages,
+    save_notified_messages,
+)
 
 # Load configuration from YAML file
 with open("courts.yaml", "r") as file:
@@ -25,42 +32,10 @@ logging.basicConfig(
 
 # Define the path for the notification file
 INTERVAL_MINUTES = 10
-NOTIFICATION_LOG_PATH = "logs/notifications.log"  # Updated path
-NOTIFICATION_JSON_PATH = "logs/notifications.jsonl"  # Updated path
-
 if not os.path.exists(os.path.dirname(NOTIFICATION_LOG_PATH)):
     os.makedirs(os.path.dirname(NOTIFICATION_LOG_PATH))
 if not os.path.exists(os.path.dirname(NOTIFICATION_JSON_PATH)):
     os.makedirs(os.path.dirname(NOTIFICATION_JSON_PATH))
-
-
-# Define a Pydantic model for notifications
-class NotificationMessage(BaseModel):
-    court_name: str
-    date: str
-    time: str
-    duration: int
-
-
-def load_notified_messages() -> list[NotificationMessage]:
-    if not os.path.exists(NOTIFICATION_JSON_PATH):
-        logging.warning(
-            f"{NOTIFICATION_JSON_PATH} does not exist. Returning an empty list."
-        )
-        return []  # Return an empty list if the file does not exist
-    with open(NOTIFICATION_JSON_PATH, "r") as json_file:
-        return [NotificationMessage.model_validate_json(line) for line in json_file]
-
-
-def save_notified_messages(notified_messages: list[NotificationMessage]) -> None:
-    # Sort messages by date and then by court name
-    notified_messages.sort(
-        key=lambda msg: (datetime.strptime(msg.date, "%A, %d %B %Y"), msg.court_name)
-    )
-
-    with open(NOTIFICATION_JSON_PATH, "w") as json_file:
-        for msg in notified_messages:
-            json_file.write(msg.model_dump_json() + "\n")
 
 
 def send_macos_notification(
@@ -192,9 +167,16 @@ def check_slots(
                             date=target_date.strftime("%A, %d %B %Y"),
                             time=time_text,
                             duration=duration_minutes,
+                            is_viewed=False,
                         )
-                        # Check if the message has already been notified
-                        if notification not in notified_messages:
+                        # Check if the message has already been notified (ignoring is_viewed)
+                        if not any(
+                            n.court_name == notification.court_name
+                            and n.date == notification.date
+                            and n.time == notification.time
+                            and n.duration == notification.duration
+                            for n in notified_messages
+                        ):
                             send_macos_notification(message)
                             notified_slots.append(f"{i}: {time_text}")
                             new_notifications.append(notification)
