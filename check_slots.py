@@ -230,7 +230,7 @@ def clean_outdated_notifications(
 
 
 def book_availability_checker(
-    court_configs: dict[str, dict], interval_minutes: int
+    court_configs: dict[str, dict], interval_minutes: int, start_date: str | None = None
 ) -> None:
     """
     Periodically checks availability for multiple courts.
@@ -238,9 +238,17 @@ def book_availability_checker(
     Parameters:
     - court_configs (Dict[str, Dict]): Dictionary of court configurations.
     - interval_minutes (int): Interval between attempts in minutes.
+    - start_date (str): The date to start checking slots in "YYYY/MM/DD" format.
     """
     notified_messages = load_notified_messages()
     notified_messages = clean_outdated_notifications(notified_messages)
+
+    # Convert start_date string to datetime object
+    if start_date:
+        start_date_dt = datetime.strptime(start_date, "%Y/%m/%d")
+    else:
+        start_date_dt = datetime.now()
+
     while True:
         logging.info("Starting availability check...")
 
@@ -265,6 +273,8 @@ def book_availability_checker(
 
             for day_offset in range(days_in_advance + 1):
                 target_date = datetime.now() + timedelta(days=day_offset)
+                if target_date < start_date_dt:
+                    continue
                 # Determine if the target date is a weekday or weekend
                 if target_date.weekday() < 5:  # Monday to Friday
                     booking_time = url_info.get("min_booking_time_weekday", "17:00")
@@ -309,4 +319,5 @@ if __name__ == "__main__":
     book_availability_checker(
         court_configs=config,
         interval_minutes=INTERVAL_MINUTES,
+        start_date="2025/02/10",
     )
