@@ -211,21 +211,30 @@ def check_slots(
 
 def clean_outdated_notifications(
     notified_messages: list[NotificationMessage],
+    start_date: str | None = None,
 ) -> list[NotificationMessage]:
     """
     Cleans out notifications that are from past dates.
 
     Parameters:
     - notified_messages (List[NotificationMessage]): List of notified messages.
+    - start_date (str | None): Optional start date in "YYYY/MM/DD" format.
 
     Returns:
     - List[NotificationMessage]: Filtered list of notifications with only future dates.
     """
     current_date = datetime.now().date()
+
+    # If start_date is provided, use it as the cutoff date if it's later than current date
+    cutoff_date = current_date
+    if start_date:
+        start_date_dt = datetime.strptime(start_date, "%Y/%m/%d").date()
+        cutoff_date = max(current_date, start_date_dt)
+
     return [
         msg
         for msg in notified_messages
-        if datetime.strptime(msg.date, "%A, %d %B %Y").date() >= current_date
+        if datetime.strptime(msg.date, "%A, %d %B %Y").date() >= cutoff_date
     ]
 
 
@@ -241,7 +250,7 @@ def book_availability_checker(
     - start_date (str): The date to start checking slots in "YYYY/MM/DD" format.
     """
     notified_messages = load_notified_messages()
-    notified_messages = clean_outdated_notifications(notified_messages)
+    notified_messages = clean_outdated_notifications(notified_messages, start_date)
 
     # Convert start_date string to datetime object
     if start_date:
@@ -319,5 +328,5 @@ if __name__ == "__main__":
     book_availability_checker(
         court_configs=config,
         interval_minutes=INTERVAL_MINUTES,
-        start_date="2025/02/10",
+        start_date="2025/03/04",
     )
