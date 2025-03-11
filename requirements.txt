@@ -1,4 +1,5 @@
 selenium
 pydantic
+pyright
 python-dotenv
 pyyaml

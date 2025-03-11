@@ -125,6 +125,11 @@ def check_slots(
 
     # Find available slots
     court_sections = driver.find_elements(By.CLASS_NAME, "mb-4")
+    notified_slots = []  # Track notified slots
+    error_slots = []  # Track slots with errors
+    unnotified_slots = []  # Track slots that do not meet requirements
+    already_notified_slots = []  # Track slots that have already been notified
+
     for section in court_sections:
         # Check if the section is for Tennis
         court_type = section.find_element(By.TAG_NAME, "p").text
@@ -136,11 +141,6 @@ def check_slots(
         logging.info(
             f"Processing {len(slots)} slots for {court_name} on {target_date.strftime('%A, %d %B %Y')}."
         )
-
-        notified_slots = []  # Track notified slots
-        error_slots = []  # Track slots with errors
-        unnotified_slots = []  # Track slots that do not meet requirements
-        already_notified_slots = []  # Track slots that have already been notified
 
         for i, slot in enumerate(slots):
             try:
@@ -328,5 +328,5 @@ if __name__ == "__main__":
     book_availability_checker(
         court_configs=config,
         interval_minutes=INTERVAL_MINUTES,
-        start_date="2025/03/04",
+        start_date="2025/03/11",
     )

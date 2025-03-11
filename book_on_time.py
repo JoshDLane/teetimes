@@ -66,6 +66,7 @@ def book_reservation(
     attempt = 0
     while attempt < n_attempts:
         attempt += 1
+        driver = None
         try:
             if not username or not password:
                 raise ValueError(
@@ -306,8 +307,9 @@ def book_reservation(
                 raise
         finally:
             # Ensure the browser is closed after each attempt
-            driver.quit()
-            print("Browser closed.")
+            if driver:
+                driver.quit()
+                print("Browser closed.")
 
 
 if __name__ == "__main__":
