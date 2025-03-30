@@ -45,29 +45,34 @@ def send_macos_notification(
     sound: str = "default",
 ) -> None:
     """
-    Sends a local notification on macOS using osascript and logs it to a file.
-
-    Parameters:
-    - message (str): The message to display in the notification.
-    - title (str): The title of the notification.
-    - subtitle (str): The subtitle of the notification.
-    - sound (str): The sound to play with the notification.
+    Sends a local notification on macOS using terminal-notifier and logs it to a file.
     """
     try:
-        script = f'display notification "{message}" with title "{title}"'
+        # Build the terminal-notifier command
+        command = ["terminal-notifier", "-title", title, "-message", message]
         if subtitle:
-            script += f' subtitle "{subtitle}"'
+            command.extend(["-subtitle", subtitle])
         if sound:
-            script += f' sound name "{sound}"'
+            command.extend(["-sound", sound])
 
-        subprocess.run(["osascript", "-e", script], check=True)
-        logging.info("macOS notification sent successfully.")
+        logging.info(f"Sending notification with command: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
 
-        # Write the notification message to the file
+        logging.info("Notification sent successfully.")
+        logging.info(f"Command output: {result.stdout}")
+
         with open(NOTIFICATION_LOG_PATH, "a") as notification_file:
             notification_file.write(f"{datetime.now()}: {message}\n")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error sending notification: {e}")
+        logging.error(f"Command output: {e.output}")
+        logging.error(f"Command stderr: {e.stderr}")
     except Exception as e:
-        logging.error(f"Error sending macOS notification: {e}")
+        logging.error(f"Error sending notification: {e}")
+        logging.error(f"Error type: {type(e)}")
+        import traceback
+
+        logging.error(f"Traceback: {traceback.format_exc()}")
 
 
 def check_slots(
