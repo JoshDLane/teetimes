@@ -333,5 +333,5 @@ if __name__ == "__main__":
     book_availability_checker(
         court_configs=config,
         interval_minutes=INTERVAL_MINUTES,
-        start_date="2025/03/11",
+        # start_date="2025/04/24",
     )
