@@ -10,4 +10,6 @@ dependencies = [
     "pyright",
     "python-dotenv",
     "pyyaml",
+    "python-dotenv",
+    "requests",
 ]

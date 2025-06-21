@@ -8,12 +8,9 @@ NOTIFICATION_LOG_PATH = "logs/notifications.log"  # Updated path
 NOTIFICATION_JSON_PATH = "logs/notifications.jsonl"  # Updated path
 
 
-class NotificationMessage(BaseModel):
-    court_name: str
-    date: str
-    time: str
-    duration: int
-    is_viewed: bool = False
+class Notification(BaseModel):
+    course: str
+    date_times: str
 
 
 def load_notified_messages() -> list[NotificationMessage]:
