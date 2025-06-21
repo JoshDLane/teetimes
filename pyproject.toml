@@ -12,4 +12,5 @@ dependencies = [
     "pyyaml",
     "python-dotenv",
     "requests",
+    "redis",
 ]

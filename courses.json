@@ -4,7 +4,7 @@
     "allowed_days_in_advance": 9,
     "earliest_time": "7:00",
     "latest_time": "19:00",
-    "days_to_check": [
+    "dates": [
       "6/26",
       "6/27"
     ]

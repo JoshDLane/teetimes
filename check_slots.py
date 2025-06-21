@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 import time as time_module
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time, timedelta
@@ -15,11 +14,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from notifs import (
-    NOTIFICATION_JSON_PATH,
-    NOTIFICATION_LOG_PATH,
-)
-from utils import create_driver, notify_about_new_openings
+from utils import AvailableSlot, create_driver, notify_about_new_openings
 
 
 class NPlayerOptions(Enum):
@@ -69,20 +64,6 @@ logging.basicConfig(
 )
 
 INTERVAL_SECONDS = 30
-
-notified_slots = set()
-
-
-# Define the path for the notification file
-if not os.path.exists(os.path.dirname(NOTIFICATION_LOG_PATH)):
-    os.makedirs(os.path.dirname(NOTIFICATION_LOG_PATH))
-if not os.path.exists(os.path.dirname(NOTIFICATION_JSON_PATH)):
-    os.makedirs(os.path.dirname(NOTIFICATION_JSON_PATH))
-
-
-class AvailableSlot(BaseModel):
-    datetime: datetime
-    course: str
 
 
 def wait_for_times_or_no_times(driver, timeout=20) -> list[WebElement]:
@@ -202,7 +183,7 @@ def get_bethpage_black_times(
         # Enter date
         date_input = driver.find_element(By.NAME, 'date')
         driver.execute_script("arguments[0].value = '';", date_input)
-        date_str = date_checking.strftime('%Y-%m-%d')
+        date_str = date_checking.strftime('%m-%d-%Y')
         date_input.send_keys(date_str)
         logging.info(f"Entered date: {date_str}")
         
@@ -322,7 +303,7 @@ def get_dates_to_check(course_config: CourseConfig) -> List[date]:
         for i in range(1, course_config.allowed_days_in_advance + 1):
             check_date = date.today() + timedelta(days=i)
             dates_to_check.append(check_date)
-    
+    print("dates to check", dates_to_check)
     return dates_to_check
 
 
