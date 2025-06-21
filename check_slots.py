@@ -1,29 +1,23 @@
 import json
 import logging
 import os
-import random
-import threading
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import Dict
 
-import requests
-from pydantic import BaseModel, Field, HttpUrl, RootModel
-from selenium import webdriver
+from pydantic import BaseModel, Field, HttpUrl, RootModel, field_validator
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from environment_vars import PUSHOVER_TOKEN, PUSHOVER_URL, PUSHOVER_USER
 from notifs import (
     NOTIFICATION_JSON_PATH,
     NOTIFICATION_LOG_PATH,
-    Notification,
 )
+from utils import create_driver, notify_about_new_openings
 
 
 class NPlayerOptions(Enum):
@@ -39,7 +33,22 @@ class CourseConfig(BaseModel):
     allowed_days_in_advance: int = Field(default=7, ge=1, le=30)
     earliest_time: str = Field(default="7:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
     latest_time: str = Field(default="16:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
+    dates: list[str] = Field(default=None)
     n_players: NPlayerOptions = Field(default=NPlayerOptions.ANY)
+    
+    @field_validator("dates", mode="before")
+    def validate_weekdays(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, list):
+            raise ValueError("weekdays must be a list of strings")
+        
+        for day in v:
+            try:
+                datetime.strptime(day, "%m/%d")
+            except ValueError:
+                raise ValueError(f"Invalid weekday format: '{day}'. Must be MM/DD.")
+        return v
 class CourseConfigs(RootModel):
     """Configuration for all courses."""
     root: Dict[str, CourseConfig]
@@ -221,59 +230,7 @@ site_parsers = {
     "bethpage_black": get_bethpage_black_times,
 }
 
-def send_notification_worker(notification: Notification):
-    """Sends a single notification in a background thread."""
-    try:
-        time_strs = [
-            dt.strftime("%-I:%M %p").strip() for dt in sorted(notification.date_times)
-        ]
-        message = (
-            f"New tee time(s) at {notification.course} for "
-            f"{notification.date_times[0].strftime('%A, %b %d')}: {', '.join(time_strs)}"
-        )
 
-        data = {
-            "token": PUSHOVER_TOKEN,
-            "user": PUSHOVER_USER,
-            "message": message,
-            "title": f"Tee Time Alert: {notification.course}",
-        }
-        resp = requests.post(PUSHOVER_URL, data=data)
-        resp.raise_for_status()
-        logging.info(f"Notification sent for {notification.course}")
-    except Exception as e:
-        logging.error(f"Failed to send notification for {notification.course}: {e}")
-
-
-def send_notification(notification: Notification):
-    """Launches a daemon thread to send a notification without blocking."""
-    thread = threading.Thread(target=send_notification_worker, args=(notification,))
-    thread.daemon = True
-    thread.start()
-
-
-def notify_about_new_openings(available_slots: list[AvailableSlot]):
-    """Filters for new slots, groups them by course, and sends notifications."""
-    newly_found_slots = []
-    for slot in available_slots:
-        slot_id = f"{slot.course}-{slot.datetime}"
-        if slot_id not in notified_slots:
-            newly_found_slots.append(slot)
-            notified_slots.add(slot_id)
-
-    if not newly_found_slots:
-        return
-
-    # Group new slots by course and date
-    notifications_to_send: Dict[tuple[str, date], Notification] = {}
-    for slot in newly_found_slots:
-        key = (slot.course, slot.datetime.date())
-        if key not in notifications_to_send:
-            notifications_to_send[key] = Notification(course=slot.course, date_times=[])
-        notifications_to_send[key].date_times.append(slot.datetime)
-
-    for notification in notifications_to_send.values():
-        send_notification(notification)
 
 def check_slots_for_course(
     driver: WebDriver,
@@ -298,6 +255,7 @@ def check_slots_for_course(
     site_parser = site_parsers[course_name]
     earliest_time = datetime.strptime(course_config.earliest_time, "%H:%M").time()
     latest_time = datetime.strptime(course_config.latest_time, "%H:%M").time()
+    days = course_config.dates
     available_slots = site_parser(
         driver,
         course_name,
@@ -314,70 +272,40 @@ def check_slots_for_course(
 
     return available_slots
 
-def book_availability_checker(
-    courses: Dict[str, CourseConfig], interval_minutes: int, start_date: str | None = None
+def run_browsers_for_all_courses(
+    courses: Dict[str, CourseConfig], interval_minutes: int
 ) -> None:
     """
     Periodically checks availability for multiple courts in a loop.
     """
-    if start_date:
-        start_date_dt = datetime.strptime(start_date, "%Y/%m/%d")
-    else:
-        start_date_dt = datetime.now()
 
-    while True:
-        logging.info("--- Starting new availability check cycle ---")
-        for course_name, course_config in courses.items():
-            logging.info(f"Checking course: {course_name}")
 
-            # Set up Chrome options for headless mode
-            chrome_options = Options()
-            # chrome_options.add_argument("--headless=new")
-            chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
-            chrome_options.add_argument(
-                "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+
+    driver = create_driver()
+
+    date_checking = datetime.now() + timedelta(days=4)
+    
+    for course in config:
+        earliest_time = datetime.strptime(course_config.earliest_time, "%H:%M").time()
+        latest_time = datetime.strptime(course_config.latest_time, "%H:%M").time()
+        print(f"Checking for {course_name} on {date_checking} between {earliest_time} and {latest_time}")
+
+        try:
+            check_slots(
+                driver,
+                course_name,
+                course_config,
+                date_checking,
             )
-            chrome_options.add_argument("--window-size=1920,1080")
-            chrome_options.add_experimental_option(
-                "prefs",
-                {
-                    "credentials_enable_service": False,
-                    "profile.password_manager_enabled": False,
-                    "profile.password_manager_leak_detection": False,
-                },
+        except Exception as e:
+            logging.error(
+                f"An error occurred for court {course_name} on {date_checking}: {e}"
             )
-            chrome_options.add_argument("--disable-dev-shm-usage")
 
-            driver = webdriver.Chrome(options=chrome_options)
-
-            try:
-                days_in_advance = course_config.allowed_days_in_advance
-                for day_offset in range(days_in_advance + 1):
-                    date_checking = datetime.now() + timedelta(days=day_offset)
-                    if date_checking < start_date_dt:
-                        continue
-
-                    logging.info(
-                        f"Checking {course_name} for date: {date_checking.strftime('%Y-%m-%d')}"
-                    )
-                    check_slots_for_course(driver, course_name, course_config, date_checking)
-            except Exception as e:
-                logging.error(
-                    f"An unhandled error occurred for course {course_name}: {e}",
-                    exc_info=True,
-                )
-            finally:
-                driver.quit()
-
-        # Wait for the next cycle
-        variance = random.uniform(-0.2, 0.2)  # +/- 20% variance
-        wait_time = interval_seconds * (1 + variance)
-        logging.info(f"Check cycle complete. Waiting for {wait_time:.2f} seconds...")
-        time.sleep(wait_time)
 
 
 if __name__ == "__main__":
-    book_availability_checker(
+    run_browsers_for_all_courses(
         courses=config,
         interval_seconds=INTERVAL_SECONDS,
     )
