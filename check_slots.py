@@ -177,7 +177,7 @@ def get_bethpage_black_times(
             EC.element_to_be_clickable((By.ID, "schedule_select"))
         )
         select = Select(course_selector)
-        select.select_by_visible_text("Bethpage Black Course")
+        select.select_by_visible_text("Bethpage Blue Course")
         logging.info("Selected Black Course")
         
         # Enter date
@@ -269,7 +269,7 @@ def check_slots_for_course(
         logging.info(
             f"Found {len(available_slots)} available slots for {course_name} on {date_checking}"
         )
-        notify_about_new_openings(available_slots)
+        notify_about_new_openings(available_slots, str(course_config.url))
 
     return available_slots
 

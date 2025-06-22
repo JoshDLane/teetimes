@@ -19,7 +19,8 @@ class AvailableSlot(BaseModel):
 
 class Notification(BaseModel):
     course: str
-    date_times: str
+    date_times: list[datetime]
+    url: str
 
 def create_driver():
     # Set up Chrome options for headless mode
@@ -59,8 +60,9 @@ def send_notification_worker(notification: Notification):
             dt.strftime("%-I:%M %p").strip() for dt in sorted(notification.date_times)
         ]
         message = (
-            f"New tee time(s) at {notification.course} for "
-            f"{notification.date_times[0].strftime('%A, %b %d')}: {', '.join(time_strs)}"
+            f"New tee time(s) at {notification.course} for:\n"
+            f"{notification.date_times[0].strftime('%A, %b %d')}:\n- {'\n- '.join(time_strs)}\n\n"
+            f"Site: {notification.url}"
         )
 
         data = {
@@ -69,11 +71,22 @@ def send_notification_worker(notification: Notification):
             "message": message,
             "title": f"Tee Time Alert: {notification.course}",
         }
+        
+        # Debug logging
+        logging.info(f"PUSHOVER_TOKEN: {PUSHOVER_TOKEN}")
+        logging.info(f"PUSHOVER_USER: {PUSHOVER_USER}")
+        logging.info(f"PUSHOVER_URL: {PUSHOVER_URL}")
+        logging.info(f"Message length: {len(message)}")
+        logging.info(f"Full data being sent: {data}")
+        
         resp = requests.post(PUSHOVER_URL, data=data)
         resp.raise_for_status()
         logging.info(f"Notification sent for {notification.course}")
     except Exception as e:
         logging.error(f"Failed to send notification for {notification.course}: {e}")
+        # Log the response content if available
+        if hasattr(e, 'response') and e.response is not None:
+            logging.error(f"Response content: {e.response.text}")
 
 
 def send_notification(notification: Notification):
@@ -83,7 +96,7 @@ def send_notification(notification: Notification):
     thread.start()
 
 
-def notify_about_new_openings(available_slots: list[AvailableSlot]):
+def notify_about_new_openings(available_slots: list[AvailableSlot], url: str):
     """Filters for new slots, groups them by course, and sends notifications."""
     newly_found_slots = []
     for slot in available_slots:
@@ -99,7 +112,9 @@ def notify_about_new_openings(available_slots: list[AvailableSlot]):
     for slot in newly_found_slots:
         key = (slot.course, slot.datetime.date())
         if key not in notifications_to_send:
-            notifications_to_send[key] = Notification(course=slot.course, date_times=[])
+            notifications_to_send[key] = Notification(
+                course=slot.course, date_times=[], url=url
+            )
         notifications_to_send[key].date_times.append(slot.datetime)
 
     for notification in notifications_to_send.values():
