@@ -24,8 +24,16 @@ class Notification(BaseModel):
 def create_driver():
     # Set up Chrome options for headless mode
     chrome_options = Options()
-    # chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--headless=new")  # Enable headless mode for Railway
     chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
+    chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
+    chrome_options.add_argument("--disable-extensions")  # Disable extensions
+    chrome_options.add_argument("--disable-plugins")  # Disable plugins
+    chrome_options.add_argument("--disable-images")  # Disable images for faster loading
+    chrome_options.add_argument("--disable-web-security")  # Disable web security
+    chrome_options.add_argument("--allow-running-insecure-content")  # Allow insecure content
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # Disable display compositor
     chrome_options.add_argument(
         "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     )
@@ -35,12 +43,9 @@ def create_driver():
         {
             "credentials_enable_service": False,
             "profile.password_manager_enabled": False,
-            "profile.password_manager_leak_detection": False,  # <--- Add this line
+            "profile.password_manager_leak_detection": False,
         },
     )
-    chrome_options.add_argument(
-        "--disable-dev-shm-usage"
-    )  # Overcome limited resource problems
 
     return webdriver.Chrome(
         options=chrome_options
