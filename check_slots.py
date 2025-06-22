@@ -177,7 +177,7 @@ def get_bethpage_black_times(
             EC.element_to_be_clickable((By.ID, "schedule_select"))
         )
         select = Select(course_selector)
-        select.select_by_visible_text("Bethpage Blue Course")
+        select.select_by_visible_text("Bethpage Black Course")
         logging.info("Selected Black Course")
         
         # Enter date
