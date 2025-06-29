@@ -29,7 +29,7 @@ class NotificationTracker:
     
     def _generate_slot_key(self, course: str, slot_datetime: datetime) -> str:
         """Generate a unique key for a slot."""
-        return f"notified_slot:{course}:{slot_datetime.isoformat()}"
+        return f"notified_slot:{course}:{slot_datetime.isoformat()}2"
     
     def is_slot_notified(self, course: str, slot_datetime: datetime) -> bool:
         """Check if a slot has already been notified about."""

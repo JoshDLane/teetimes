@@ -108,9 +108,12 @@ def notify_about_new_openings(available_slots: list[AvailableSlot], url: str):
             newly_found_slots.append(slot)
             mark_slot_notified(slot.course, slot.datetime)
 
+    logging.info(
+        f"Found {len(newly_found_slots)} new slots, of {len(available_slots)} total"
+    )
+
     if not newly_found_slots:
         return
-
     # Group new slots by course and date
     notifications_to_send: Dict[tuple[str, date], Notification] = {}
     for slot in newly_found_slots:
