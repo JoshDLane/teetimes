@@ -1,4 +1,8 @@
+[build]
+timeout = 1800  # 30 minutes in seconds
+
 [deploy]
+timeout = 1800  # 30 minutes in seconds
 numReplicas = 1
-restartPolicyType = "ON_FAILURE"
+restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
