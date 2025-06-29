@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     gnupg \
     unzip \
     curl \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome
@@ -19,14 +20,14 @@ RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ChromeDriver
-RUN CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | awk -F'.' '{print $1}') \
-    && wget -q "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION" -O /tmp/chromedriver_version \
-    && CHROMEDRIVER_VERSION=$(cat /tmp/chromedriver_version) \
-    && wget -q "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip" -O /tmp/chromedriver.zip \
-    && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
-    && rm /tmp/chromedriver.zip /tmp/chromedriver_version \
-    && chmod +x /usr/local/bin/chromedriver
+# Install ChromeDriver using the new Chrome for Testing API
+RUN CHROME_VERSION=$(google-chrome --version | grep -oE "[0-9]+\.[0-9]+\.[0-9]+" | head -1) \
+    && CHROME_MAJOR_VERSION=$(echo $CHROME_VERSION | cut -d'.' -f1) \
+    && CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone.json" | jq -r ".milestones.\"$CHROME_MAJOR_VERSION\".version") \
+    && wget https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip \
+    && unzip chromedriver-linux64.zip && rm -dfr chromedriver-linux64.zip \
+    && mv /chromedriver-linux64/chromedriver /usr/bin/chromedriver \
+    && chmod +x /usr/bin/chromedriver
 
 # Copy requirements and install Python dependencies
 COPY pyproject.toml ./
