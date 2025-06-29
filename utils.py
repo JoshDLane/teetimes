@@ -1,4 +1,5 @@
 import logging
+import os
 import threading
 from datetime import date, datetime
 from typing import Dict
@@ -25,7 +26,8 @@ class Notification(BaseModel):
 def create_driver():
     # Set up Chrome options for headless mode
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")  # Enable headless mode for Railway
+    chrome_options.set_capability("browserless:token", os.environ["BROWSER_TOKEN"])
+    chrome_options.add_argument("--headless=new")  # Enable headless mode
     chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
     chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
@@ -48,9 +50,11 @@ def create_driver():
         },
     )
 
-    return webdriver.Chrome(
-        options=chrome_options
-    )  # Initialize WebDriver with options
+    # Use Remote WebDriver to connect to Browserless
+    return webdriver.Remote(
+        command_executor=os.environ["BROWSER_WEBDRIVER_ENDPOINT"],
+        options=chrome_options,
+    )
     
     
 def send_notification_worker(notification: Notification):
