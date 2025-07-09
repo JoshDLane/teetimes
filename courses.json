@@ -2,12 +2,12 @@
   "bethpage_black": {
     "url": "https://foreupsoftware.com/index.php/booking/19765/2431#teetimes",
     "allowed_days_in_advance": 7,
-    "earliest_time": "8:00",
+    "earliest_time": "7:00",
     "latest_time": "15:00",
     "dates": [
+      "7/13",
       "7/14",
-      "7/16",
-      "7/17"
+      "7/16"
     ]
   }
 }
