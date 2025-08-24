@@ -26,8 +26,8 @@ class Notification(BaseModel):
 def create_driver():
     # Set up Chrome options for headless mode
     chrome_options = Options()
-    chrome_options.set_capability("browserless:token", os.environ["BROWSER_TOKEN"])
-    chrome_options.add_argument("--headless=new")  # Enable headless mode
+    
+
     chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
     chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
@@ -49,12 +49,19 @@ def create_driver():
             "profile.password_manager_leak_detection": False,
         },
     )
-
-    # Use Remote WebDriver to connect to Browserless
-    return webdriver.Remote(
-        command_executor=os.environ["BROWSER_WEBDRIVER_ENDPOINT"],
-        options=chrome_options,
-    )
+    # Check if browserless is available (deployed environment)
+    if os.environ.get("BROWSER_TOKEN") and os.environ.get("BROWSER_WEBDRIVER_ENDPOINT"):
+        # Use Browserless (deployed environment)
+        chrome_options.set_capability("browserless:token", os.environ["BROWSER_TOKEN"])
+        chrome_options.add_argument("--headless=new")  # Enable headless mode
+        # Use Remote WebDriver to connect to Browserless
+        return webdriver.Remote(
+            command_executor=os.environ["BROWSER_WEBDRIVER_ENDPOINT"],
+            options=chrome_options,
+        )
+    else:
+        # Use local Chrome WebDriver
+        return webdriver.Chrome(options=chrome_options)
     
     
 def send_notification_worker(notification: Notification):

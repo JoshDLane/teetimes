@@ -24,28 +24,44 @@ BookBot is designed to automate the process of finding and booking tennis court 
 
 - Python 3.7+
 - Chrome browser (for Selenium WebDriver)
-- `terminal-notifier` for macOS notifications
+- Redis (for notification tracking)
+- `terminal-notifier` for macOS notifications (optional)
 
 ### Installation
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/yourusername/bookbot.git
    cd bookbot
    ```
 
 2. Install dependencies:
+
    ```
    pip install -r requirements.txt
    ```
 
-3. Create a `.env.local` file with your credentials (for booking functionality):
-   ```
-   USERNAME=your_email@example.com
-   PASSWORD=your_password
+3. Set up Redis (required for notification tracking):
+
+   ```bash
+   # macOS
+   brew install redis
+   redis-server
+
+   # Or use Docker
+   docker run -d -p 6379:6379 redis:alpine
    ```
 
-4. Configure your court preferences in `courts.yaml`
+4. Create a `.env` file with your configuration:
+
+   ```bash
+   # Copy the example file
+   cp env.example .env
+   # Edit .env with your actual values
+   ```
+
+5. Configure your court preferences in `courts.yaml`
 
 ## Usage
 
@@ -82,6 +98,7 @@ python mark_as_viewed.py
 ## Configuration
 
 Edit `courts.yaml` to configure court preferences:
+
 - `url`: The booking URL for the court
 - `days_in_advance`: How many days ahead to check
 - `opening_time`: When the booking window opens
@@ -90,6 +107,22 @@ Edit `courts.yaml` to configure court preferences:
 
 ## Implementation Notes
 
-- The notification system uses both a log file and a JSONL file to track notifications
+- The notification system uses Redis to track notifications
 - Notifications include court name, date, time, duration, and viewed status
-- Selenium WebDriver is used to interact with the rec.us website
+- Selenium WebDriver is used to interact with the golf course websites
+- **Hybrid Architecture**: The system automatically detects whether to use Browserless (deployed) or local Chrome WebDriver (local development)
+
+## Environment Modes
+
+### Local Development Mode
+
+- Uses local Chrome WebDriver
+- Requires Chrome browser and ChromeDriver installed
+- Uses local Redis instance
+- Set `REDIS_URL=redis://localhost:6379` in `.env`
+
+### Deployed Mode
+
+- Uses Browserless service
+- Requires `BROWSER_TOKEN` and `BROWSER_WEBDRIVER_ENDPOINT` in environment
+- Uses Redis service (e.g., Railway Redis)

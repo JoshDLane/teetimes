@@ -4,6 +4,7 @@
     "allowed_days_in_advance": 7,
     "earliest_time": "7:00",
     "latest_time": "15:00",
+    "full_course_name": "Montauk Downs State Golf Course",
     "dates": [
       "8/28",
       "8/29",

@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 import yaml
 from dotenv import load_dotenv
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -74,7 +73,8 @@ def book_reservation(
                 )
 
             # Initialize the WebDriver inside the retry loop
-            driver = webdriver.Chrome()  # or webdriver.Firefox() if using Firefox
+            from utils import create_driver
+            driver = create_driver()  # Use the hybrid driver function
             print("WebDriver initialized.")
 
             # Navigate to the login page

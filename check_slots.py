@@ -32,6 +32,7 @@ class CourseConfig(BaseModel):
     latest_time: str = Field(default="16:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
     dates: Optional[List[str]] = Field(default=None)
     n_players: NPlayerOptions = Field(default=NPlayerOptions.ANY)
+    full_course_name: str = Field(default="Bethpage Black Course")
     
     @field_validator("dates", mode="before")
     def validate_dates(cls, v):
@@ -102,10 +103,10 @@ def wait_for_times_or_no_times(driver, timeout=20) -> list[WebElement]:
         return []
 
 
-def login_to_bethpage(driver: WebDriver) -> bool:
-    """Login to Bethpage and select NYS Resident status. Returns True if successful."""
+def login_to_foreupsoftware(driver: WebDriver, course_config: CourseConfig, course_name: str) -> bool:
+    """Login to foreupsoftware and select NYS Resident status. Returns True if successful."""
     try:
-        url = 'https://foreupsoftware.com/index.php/booking/19765/2431#teetimes'
+        url = str(course_config.url)
         driver.get(url)
         logging.info(f"Navigated to {url}")
         
@@ -142,43 +143,55 @@ def login_to_bethpage(driver: WebDriver) -> bool:
         )
         
         # Select NYS Resident
-        nys_resident_btn = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable(
-                (
-                    By.XPATH,
-                    "//button[contains(text(), 'Verified NYS Resident - Bethpage/Sunken Meadow')]",
+        if course_name == "bethpage_black":
+            nys_resident_btn = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "//button[contains(text(), 'Verified NYS Resident - Bethpage/Sunken Meadow')]",
+                    )
                 )
-            )
-        ) 
+            ) 
+        else: 
+            print("montauk")
+            nys_resident_btn = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        "//button[contains(text(), 'Resident')]",
+                    )
+                )
+            ) 
         nys_resident_btn.click()
         logging.info("Selected NYS Resident status")
         
         return True
         
     except Exception as e:
-        logging.error(f"Failed to login to Bethpage: {e}")
+        logging.error(f"Failed to login to {course_name}: {e}")
         return False
 
 
-def get_bethpage_black_times(
+
+def get_foreupsoftware_times(
     driver: WebDriver,
     course_name: str,
     date_checking: date,
-    n_players: NPlayerOptions = NPlayerOptions.ANY,
+    course_config: CourseConfig,
     earliest_time: time = datetime.strptime("7:00", "%H:%M").time(),
     latest_time: time = datetime.strptime("16:00", "%H:%M").time(),
 ) -> list[AvailableSlot]:
     """Get available times for Bethpage Black Course for a specific date."""
     available_slots: list[AvailableSlot] = []
-    
+    logging.info(f"Getting times for {course_name} on {date_checking}")
     try:
         # Select black course
         course_selector = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "schedule_select"))
         )
         select = Select(course_selector)
-        select.select_by_visible_text("Bethpage Black Course")
-        logging.info("Selected Black Course")
+        select.select_by_visible_text(course_config.full_course_name)
+        logging.info(f"Selected {course_config.full_course_name}")
         
         # Enter date
         date_input = driver.find_element(By.NAME, 'date')
@@ -188,12 +201,12 @@ def get_bethpage_black_times(
         logging.info(f"Entered date: {date_str}")
         
         # Select n players
-        logging.info(f"Selecting {n_players.value} players")
+        logging.info(f"Selecting {course_config.n_players.value} players")
         any_btn = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (
                     By.XPATH,
-                    f"//a[contains(@class, 'btn') and contains(@class, 'btn-primary') and text()='{n_players.value}']",
+                    f"//a[contains(@class, 'btn') and contains(@class, 'btn-primary') and text()='{course_config.n_players.value}']",
                 )
             )
         )
@@ -230,7 +243,8 @@ def get_bethpage_black_times(
 
 
 site_parsers = {
-    "bethpage_black": get_bethpage_black_times,
+    "bethpage_black": get_foreupsoftware_times,
+    "montauk_downs": get_foreupsoftware_times,
 }
 
 
@@ -260,7 +274,7 @@ def check_slots_for_course(
         driver,
         course_name,
         date_checking,
-        course_config.n_players,
+        course_config,
         earliest_time,
         latest_time,
     )
@@ -317,24 +331,26 @@ class CourseManager:
         self.is_logged_in = False
         self.running = False
         
+    def handle_login(self) -> bool:
+        """Handle login for a course."""
+        if self.course_name.lower() in ["bethpage_black", "montauk_downs"]:
+            login_to_foreupsoftware(self.driver, self.course_config, self.course_name)
+        
     def initialize_driver(self) -> bool:
         """Initialize the driver and login if needed."""
         try:
-            self.driver = create_driver()
-            
-            # Login for Bethpage courses
-            if "bethpage" in self.course_name.lower():
-                self.is_logged_in = login_to_bethpage(self.driver)
-                if not self.is_logged_in:
-                    logging.error(f"Failed to login for {self.course_name}")
-                    return False
-            
-            logging.info(f"Successfully initialized driver for {self.course_name}")
-            return True
-            
+            self.driver = create_driver()            
         except Exception as e:
             logging.error(f"Failed to initialize driver for {self.course_name}: {e}")
             return False
+        try:
+            self.handle_login()
+            self.is_logged_in = True
+        except Exception as e:
+            logging.error(f"Failed to login for {self.course_name}: {e}")
+            return False
+        logging.info(f"Successfully initialized driver for {self.course_name}")
+        return True
     
     def check_course_availability(self) -> None:
         """Check availability for all configured dates for this course."""
