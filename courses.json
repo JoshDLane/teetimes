@@ -1,13 +1,13 @@
 {
-  "bethpage_black": {
-    "url": "https://foreupsoftware.com/index.php/booking/19765/2431#teetimes",
+  "montauk_downs": {
+    "url": "https://foreupsoftware.com/index.php/booking/19756/2436#/teetimes",
     "allowed_days_in_advance": 7,
     "earliest_time": "7:00",
     "latest_time": "15:00",
     "dates": [
-      "7/13",
-      "7/14",
-      "7/16"
+      "8/28",
+      "8/29",
+      "8/30"
     ]
   }
 }
