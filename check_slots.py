@@ -330,12 +330,35 @@ class CourseManager:
         self.driver: Optional[WebDriver] = None
         self.is_logged_in = False
         self.running = False
+        self.max_session_duration = 300  # 5 minutes in seconds
         
     def handle_login(self) -> bool:
         """Handle login for a course."""
         if self.course_name.lower() in ["bethpage_black", "montauk_downs"]:
             login_to_foreupsoftware(self.driver, self.course_config, self.course_name)
-        
+            
+    def should_refresh_session(self) -> bool:
+        """Check if we should refresh the session."""
+        if not self.session_start_time:
+            return True
+        elapsed = time_module.time() - self.session_start_time
+        return elapsed > self.max_session_duration
+
+    def refresh_session(self) -> bool:
+        """Refresh the driver session."""
+        try:
+            if self.driver:
+                self.driver.quit()
+            self.driver = create_driver()
+            self.handle_login()
+            self.is_logged_in = True
+            self.session_start_time = time_module.time()
+            logging.info(f"Refreshed session for {self.course_name}")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to refresh session for {self.course_name}: {e}")
+            return False
+
     def initialize_driver(self) -> bool:
         """Initialize the driver and login if needed."""
         try:
@@ -354,6 +377,11 @@ class CourseManager:
     
     def check_course_availability(self) -> None:
         """Check availability for all configured dates for this course."""
+        if self.should_refresh_session():
+            if not self.refresh_session():
+                logging.error(f"Cannot check availability for {self.course_name}: failed to refresh session")
+                return
+        
         if not self.driver or not self.is_logged_in:
             logging.error(f"Cannot check availability for {self.course_name}: driver not initialized or not logged in")
             return
@@ -375,7 +403,42 @@ class CourseManager:
                     logging.info(f"Found {len(available_slots)} slots for {self.course_name} on {check_date}")
                 
             except Exception as e:
-                logging.error(f"Error checking {self.course_name} for {check_date}: {e}")
+                error_msg = str(e)
+                if (
+                    "Couldn't access session" in error_msg
+                    or "timeout" in error_msg.lower()
+                ):
+                    logging.warning(
+                        f"Session timeout detected for {self.course_name}, attempting to refresh..."
+                    )
+                    if self.refresh_session():
+                        logging.info(
+                            f"Session refreshed successfully for {self.course_name}"
+                        )
+                        # Retry the current date
+                        try:
+                            available_slots = check_slots_for_course(
+                                self.driver,
+                                self.course_name,
+                                self.course_config,
+                                check_date,
+                            )
+                            if available_slots:
+                                logging.info(
+                                    f"Retry successful: Found {len(available_slots)} slots for {self.course_name} on {check_date}"
+                                )
+                        except Exception as retry_e:
+                            logging.error(
+                                f"Retry failed for {self.course_name} on {check_date}: {retry_e}"
+                            )
+                    else:
+                        logging.error(
+                            f"Failed to refresh session for {self.course_name}"
+                        )
+                else:
+                    logging.error(
+                        f"Error checking {self.course_name} for {check_date}: {e}"
+                    )
     
     def run_continuous_checking(self, interval_seconds: int) -> None:
         """Run continuous checking for this course."""
