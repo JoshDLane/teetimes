@@ -331,7 +331,8 @@ class CourseManager:
         self.is_logged_in = False
         self.running = False
         self.max_session_duration = 300  # 5 minutes in seconds
-        
+        self.session_start_time = None
+
     def handle_login(self) -> bool:
         """Handle login for a course."""
         if self.course_name.lower() in ["bethpage_black", "montauk_downs"]:
