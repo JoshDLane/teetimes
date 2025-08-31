@@ -102,6 +102,152 @@ def wait_for_times_or_no_times(driver, timeout=20) -> list[WebElement]:
         logging.warning("Timed out waiting for time slots or 'no times' message.")
         return []
 
+def login_to_eazylinks(driver: WebDriver, course_config: CourseConfig, course_name: str) -> bool:
+    """Login to eazylinks from /search."""
+    try:
+        url = str(course_config.url)
+        driver.get(url)
+        logging.info(f"Navigated to {url}")
+        
+        # Helper function to find elements in shadow DOM
+        def find_element_in_shadow_dom(host_selector, target_selector):
+            """Find an element inside shadow DOM using JavaScript."""
+            script = f"""
+            const host = document.querySelector('{host_selector}');
+            if (host && host.shadowRoot) {{
+                return host.shadowRoot.querySelector('{target_selector}');
+            }}
+            return null;
+            """
+            return driver.execute_script(script)
+        
+        def click_element_in_shadow_dom(host_selector, target_selector):
+            """Click an element inside shadow DOM using JavaScript."""
+            script = f"""
+            const host = document.querySelector('{host_selector}');
+            if (host && host.shadowRoot) {{
+                const element = host.shadowRoot.querySelector('{target_selector}');
+                if (element) {{
+                    element.click();
+                    return true;
+                }}
+            }}
+            return false;
+            """
+            return driver.execute_script(script)
+        
+        # Handle "Verify you are human" checkbox that may appear on first page load
+        try:
+            # Wait for either human verification checkbox OR sign in link to appear
+            def either_condition(drv):
+                # Check for human verification checkbox (regular DOM)
+                try:
+                    checkbox = drv.find_element(By.XPATH, "//input[@type='checkbox']")
+                    if checkbox.is_displayed() and checkbox.is_enabled():
+                        return "checkbox"
+                except Exception:
+                    pass
+                
+                # Check for human verification checkbox in shadow DOM
+                try:
+                    shadow_checkbox = find_element_in_shadow_dom("*", "input[type='checkbox']")
+                    if shadow_checkbox:
+                        return "shadow_checkbox"
+                except Exception:
+                    pass
+                
+                # Check for sign in link
+                try:
+                    sign_in = drv.find_element(By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
+                    if sign_in.is_displayed() and sign_in.is_enabled():
+                        return "sign_in"
+                except Exception:
+                    pass
+                
+                return False  # Keep waiting
+            
+            result = WebDriverWait(driver, 10).until(either_condition)
+            
+            if result == "checkbox":
+                # Human verification checkbox appeared first (regular DOM)
+                checkbox = driver.find_element(By.XPATH, "//input[@type='checkbox']")
+                checkbox.click()
+                logging.info("Clicked 'Verify you are human' checkbox")
+                
+                # Wait for verification to complete (sign in link should appear)
+                WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
+                )
+                logging.info("Human verification completed - sign in link is now available")
+                
+            elif result == "shadow_checkbox":
+                # Human verification checkbox appeared first (shadow DOM)
+                success = click_element_in_shadow_dom("*", "input[type='checkbox']")
+                if success:
+                    logging.info("Clicked 'Verify you are human' checkbox in shadow DOM")
+                    
+                    # Wait for verification to complete (sign in link should appear)
+                    WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
+                    )
+                    logging.info("Human verification completed - sign in link is now available")
+                else:
+                    logging.warning("Failed to click checkbox in shadow DOM")
+                    
+            else:
+                # Sign in link appeared directly (no verification needed)
+                logging.info("No human verification needed - sign in link is available")
+                
+        except Exception as e:
+            logging.info(f"Error during human verification check: {e}")
+        
+        # Click the Sign In link
+        sign_in_link = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
+            )
+        )
+        sign_in_link.click()
+        logging.info("Clicked Sign In link")
+
+        # Enter username
+        username_input = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "input[data-ng-model='loginModel.username'][name='login']")
+            )
+        )
+        username_input.send_keys("Jdlane22")
+        logging.info("Entered username")
+
+        # Enter password
+        password_input = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "input[type='password'][data-ng-model='loginModel.password']")
+            )
+        )
+        password_input.send_keys("Jdl10014!")
+        logging.info("Entered password")
+
+        # Click the login button
+        login_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "button[data-ng-click='login()'][type='submit']")
+            )
+        )
+        login_button.click()
+        logging.info("Clicked login button")
+
+        # Wait for login to complete - wait for "My Account" link to appear
+        WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//a[contains(text(), 'My Account')]"))
+        )
+        logging.info("Login completed successfully - My Account link is visible")
+
+        return True
+        
+    except Exception as e:
+        logging.error(f"Failed to login to {course_name}: {e}")
+        return False
 
 def login_to_foreupsoftware(driver: WebDriver, course_config: CourseConfig, course_name: str) -> bool:
     """Login to foreupsoftware and select NYS Resident status. Returns True if successful."""
@@ -172,7 +318,176 @@ def login_to_foreupsoftware(driver: WebDriver, course_config: CourseConfig, cour
         return False
 
 
-
+def get_eazylinks_times(
+    driver: WebDriver,
+    course_name: str,
+    date_checking: date,
+    course_config: CourseConfig,
+    earliest_time: time = datetime.strptime("7:00", "%H:%M").time(),
+    latest_time: time = datetime.strptime("16:00", "%H:%M").time(),
+) -> list[AvailableSlot]:
+    """Get available times for eazylinks courses for a specific date."""
+    available_slots: list[AvailableSlot] = []
+    logging.info(f"Getting times for {course_name} on {date_checking}")
+    
+    try:
+        # Wait for the page to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "ngrs-range-slider"))
+        )
+        
+        # 1. Select the date
+        date_str = date_checking.strftime('%m/%d/%Y')
+        logging.info(f"Selecting date: {date_str}")
+        
+        # Find and click the date input/selector
+        try:
+            # Look for a date input field or date picker
+            date_input = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "input[data-ng-model*='date'], input[type='date'], .date-picker input"))
+            )
+            driver.execute_script("arguments[0].value = '';", date_input)
+            date_input.send_keys(date_str)
+            logging.info(f"Entered date: {date_str}")
+        except Exception as e:
+            logging.warning(f"Could not find date input, trying alternative selectors: {e}")
+            # Try alternative date selection methods
+            try:
+                # Look for date picker or calendar element
+                date_picker = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".date-picker, .calendar, [data-ng-model*='date']"))
+                )
+                date_picker.click()
+                # You might need to add more specific date selection logic here
+                logging.info("Clicked date picker")
+            except Exception:
+                logging.warning("Could not find date selector, proceeding without date selection")
+        
+        # 2. Adjust the time range slider based on earliest and latest time
+        logging.info(f"Adjusting time range to {earliest_time} - {latest_time}")
+        
+        # Convert times to minutes since midnight for the slider
+        earliest_minutes = earliest_time.hour * 60 + earliest_time.minute
+        latest_minutes = latest_time.hour * 60 + latest_time.minute
+        
+        try:
+            # Find the range slider
+            range_slider = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CLASS_NAME, "ngrs-range-slider"))
+            )
+            
+            # Find the min and max handles
+            min_handle = range_slider.find_element(By.CLASS_NAME, "ngrs-handle-min")
+            max_handle = range_slider.find_element(By.CLASS_NAME, "ngrs-handle-max")
+            
+            # Get the slider width to calculate positions
+            slider_width = range_slider.size['width']
+            
+            # Calculate positions as percentages
+            # Assuming the slider range is from 0 to 1440 minutes (24 hours)
+            min_position = (earliest_minutes / 1440) * 100
+            max_position = (latest_minutes / 1440) * 100
+            
+            # Use JavaScript to set the slider values
+            driver.execute_script(f"""
+                var slider = arguments[0];
+                var minHandle = arguments[1];
+                var maxHandle = arguments[2];
+                var minPos = arguments[3];
+                var maxPos = arguments[4];
+                
+                // Set the model values
+                var scope = angular.element(slider).scope();
+                scope.ec.timeRange.userMinOne = {earliest_minutes};
+                scope.ec.timeRange.userMaxOne = {latest_minutes};
+                scope.$apply();
+                
+                // Update handle positions
+                minHandle.style.left = minPos + '%';
+                maxHandle.style.left = maxPos + '%';
+            """, range_slider, min_handle, max_handle, min_position, max_position)
+            
+            logging.info(f"Set time range slider to {earliest_minutes}-{latest_minutes} minutes")
+            
+        except Exception as e:
+            logging.warning(f"Could not adjust time range slider: {e}")
+        
+        # 3. Adjust player number
+        logging.info(f"Selecting {course_config.n_players.value} players")
+        try:
+            # Look for player selection buttons or dropdown
+            player_selector = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((
+                    By.XPATH, 
+                    f"//button[contains(text(), '{course_config.n_players.value}') or contains(@data-ng-model, '{course_config.n_players.value}')]"
+                ))
+            )
+            player_selector.click()
+            logging.info(f"Selected {course_config.n_players.value} players")
+        except Exception as e:
+            logging.warning(f"Could not select player number: {e}")
+        
+        # 4. Look for available times
+        # Wait a moment for the page to update after our selections
+        time_module.sleep(2)
+        
+        # Look for time slots using the specific structure from eazylinks
+        try:
+            # First check if the tee-time-block exists
+            tee_time_block = WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "ul.tee-time-block"))
+            )
+            
+            # Find all time spans within the tee-time-block
+            time_slots = tee_time_block.find_elements(By.CSS_SELECTOR, "span.time.ng-binding")
+            
+            logging.info(f"Found {len(time_slots)} time slots")
+            
+            for slot in time_slots:
+                try:
+                    time_text = slot.text.strip()
+                    logging.info(f"Processing time slot: {time_text}")
+                    
+                    # Parse the time text (format: "3:50 PM", "4:30 PM", etc.)
+                    time_text_clean = time_text.split()[0]  # Take first part in case there's additional text
+                    
+                    # Try different time formats
+                    slot_time = None
+                    for time_format in ["%I:%M %p", "%I:%M%p", "%H:%M", "%I:%M"]:
+                        try:
+                            slot_time = datetime.strptime(time_text_clean, time_format).time()
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if slot_time is None:
+                        logging.warning(f"Could not parse time: {time_text}")
+                        continue
+                    
+                    # Check if time is within our window
+                    if earliest_time <= slot_time <= latest_time:
+                        # Create a datetime by combining the date and time
+                        slot_datetime = datetime.combine(date_checking, slot_time)
+                        available_slots.append(
+                            AvailableSlot(datetime=slot_datetime, course=course_name)
+                        )
+                        logging.info(f"Found available slot at {time_text}")
+                        
+                except Exception as e:
+                    logging.warning(f"Error processing time slot: {e}")
+                    continue
+                    
+        except TimeoutException:
+            logging.info("No time slots found or timeout waiting for tee-time-block")
+        except Exception as e:
+            logging.error(f"Error looking for time slots: {e}")
+            
+    except Exception as e:
+        logging.error(f"Error getting times for {course_name} on {date_checking}: {e}")
+        
+    return available_slots
+    
+    
 def get_foreupsoftware_times(
     driver: WebDriver,
     course_name: str,
@@ -245,6 +560,7 @@ def get_foreupsoftware_times(
 site_parsers = {
     "bethpage_black": get_foreupsoftware_times,
     "montauk_downs": get_foreupsoftware_times,
+    "marine_park": get_eazylinks_times,
 }
 
 
@@ -337,6 +653,8 @@ class CourseManager:
         """Handle login for a course."""
         if self.course_name.lower() in ["bethpage_black", "montauk_downs"]:
             login_to_foreupsoftware(self.driver, self.course_config, self.course_name)
+        elif self.course_name.lower() == "marine_park":
+            login_to_eazylinks(self.driver, self.course_config, self.course_name)
             
     def should_refresh_session(self) -> bool:
         """Check if we should refresh the session."""

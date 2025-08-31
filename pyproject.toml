@@ -13,4 +13,5 @@ dependencies = [
     "python-dotenv",
     "requests",
     "redis",
+    "seleniumbase",
 ]
