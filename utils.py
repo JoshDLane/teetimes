@@ -6,8 +6,12 @@ from typing import Dict
 
 import requests
 from pydantic import BaseModel
-from selenium import webdriver
+from selenium.webdriver import Chrome, Remote
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chromium.remote_connection import (
+    ChromiumRemoteConnection as Connection,
+)
+from selenium.webdriver.common.action_chains import ActionChains
 
 from environment_vars import PUSHOVER_TOKEN, PUSHOVER_URL, PUSHOVER_USER
 from notification_tracker import is_slot_notified, mark_slot_notified
@@ -27,41 +31,43 @@ def create_driver():
     # Set up Chrome options for headless mode
     chrome_options = Options()
     
-
-    chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
     chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
     chrome_options.add_argument("--disable-extensions")  # Disable extensions
     chrome_options.add_argument("--disable-plugins")  # Disable plugins
-    chrome_options.add_argument("--disable-images")  # Disable images for faster loading
-    chrome_options.add_argument("--disable-web-security")  # Disable web security
-    chrome_options.add_argument("--allow-running-insecure-content")  # Allow insecure content
-    chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # Disable display compositor
-    chrome_options.add_argument(
-        "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    )
+
     chrome_options.add_argument("--window-size=1920,1080")  # Full HD resolution
-    chrome_options.add_experimental_option(
-        "prefs",
-        {
-            "credentials_enable_service": False,
-            "profile.password_manager_enabled": False,
-            "profile.password_manager_leak_detection": False,
-        },
-    )
+    if os.environ.get("REMOTE_SERVER"):
+        connection = Connection(os.environ["REMOTE_SERVER"], "goog", "chrome")
+        return Remote(connection, options=chrome_options)
     # Check if browserless is available (deployed environment)
-    if os.environ.get("BROWSER_TOKEN") and os.environ.get("BROWSER_WEBDRIVER_ENDPOINT"):
+    elif os.environ.get("BROWSER_TOKEN") and os.environ.get("BROWSER_WEBDRIVER_ENDPOINT"):
         # Use Browserless (deployed environment)
         chrome_options.set_capability("browserless:token", os.environ["BROWSER_TOKEN"])
         chrome_options.add_argument("--headless=new")  # Enable headless mode
         # Use Remote WebDriver to connect to Browserless
-        return webdriver.Remote(
+        return Remote(
             command_executor=os.environ["BROWSER_WEBDRIVER_ENDPOINT"],
-            options=chrome_options,
         )
     else:
+        chrome_options.add_experimental_option(
+            "prefs",
+            {
+                "credentials_enable_service": False,
+                "profile.password_manager_enabled": False,
+                "profile.password_manager_leak_detection": False,
+            },
+        )
+            
+        chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
+        chrome_options.add_argument("--disable-images")  # Disable images for faster loading
+        chrome_options.add_argument("--disable-web-security")  # Disable web security
+        chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # Disable display compositor
+        chrome_options.add_argument(
+            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
         # Use local Chrome WebDriver
-        return webdriver.Chrome(options=chrome_options)
+        return Chrome(options=chrome_options)
     
     
 def send_notification_worker(notification: Notification):
@@ -133,3 +139,39 @@ def notify_about_new_openings(available_slots: list[AvailableSlot], url: str):
 
     for notification in notifications_to_send.values():
         send_notification(notification)
+
+
+def click_checkbox_at_coordinates(driver, x_offset=10, y_offset=162):
+    """
+    Simulates a click on a checkbox using calculated coordinates.
+    
+    Args:
+        driver: Selenium WebDriver instance
+        x_offset: Additional x offset from the calculated position (default: 10px)
+        y_offset: Additional y offset from the calculated position (default: 162px)
+    
+    The calculation assumes:
+    - Screen width: 1200px
+    - Box width: 63rem
+    - Y position: 8rem + y_offset
+    """
+    # Convert rem to pixels (assuming 1rem = 16px)
+    rem_to_px = 16
+    
+    # Calculate x coordinate: 1200 - (63rem / 2) + x_offset
+    box_width_px = 63 * rem_to_px  # 63rem converted to pixels
+    x = 1200 - (box_width_px / 2) + x_offset
+    
+    # Calculate y coordinate: 8rem + y_offset
+    y = (8 * rem_to_px) + y_offset
+    
+    logging.info(f"Clicking at coordinates: x={x}, y={y}")
+    
+    # Use ActionChains to perform the click
+    actions = ActionChains(driver)
+    actions.move_by_offset(x, y).click().perform()
+    
+    # Reset the mouse position to avoid affecting subsequent actions
+    actions.move_by_offset(-x, -y).perform()
+    
+    logging.info("Checkbox click simulated successfully")

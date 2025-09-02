@@ -14,7 +14,11 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
-from utils import AvailableSlot, create_driver, notify_about_new_openings
+from utils import (
+    AvailableSlot,
+    create_driver,
+    notify_about_new_openings,
+)
 
 
 class NPlayerOptions(Enum):
@@ -108,100 +112,343 @@ def login_to_eazylinks(driver: WebDriver, course_config: CourseConfig, course_na
         url = str(course_config.url)
         driver.get(url)
         logging.info(f"Navigated to {url}")
+        time_module.sleep(10)
+        # print('going to click!')
+        # click_checkbox_at_coordinates(driver)
         
-        # Helper function to find elements in shadow DOM
-        def find_element_in_shadow_dom(host_selector, target_selector):
-            """Find an element inside shadow DOM using JavaScript."""
-            script = f"""
-            const host = document.querySelector('{host_selector}');
-            if (host && host.shadowRoot) {{
-                return host.shadowRoot.querySelector('{target_selector}');
-            }}
-            return null;
-            """
-            return driver.execute_script(script)
+        # Wait for page to load completely
+        WebDriverWait(driver, 10).until(
+            lambda d: d.execute_script("return document.readyState") == "complete"
+        )
+        logging.info("Page loaded completely")
         
-        def click_element_in_shadow_dom(host_selector, target_selector):
-            """Click an element inside shadow DOM using JavaScript."""
-            script = f"""
-            const host = document.querySelector('{host_selector}');
-            if (host && host.shadowRoot) {{
-                const element = host.shadowRoot.querySelector('{target_selector}');
-                if (element) {{
-                    element.click();
-                    return true;
-                }}
-            }}
-            return false;
-            """
-            return driver.execute_script(script)
-        
-        # Handle "Verify you are human" checkbox that may appear on first page load
-        try:
-            # Wait for either human verification checkbox OR sign in link to appear
-            def either_condition(drv):
-                # Check for human verification checkbox (regular DOM)
-                try:
-                    checkbox = drv.find_element(By.XPATH, "//input[@type='checkbox']")
-                    if checkbox.is_displayed() and checkbox.is_enabled():
-                        return "checkbox"
-                except Exception:
-                    pass
+        # # Helper function to find elements in shadow DOM
+        # def find_element_in_shadow_dom(host_selector, target_selector):
+        #     """Find an element inside shadow DOM using JavaScript."""
+        #     script = """
+        #     function findInShadowDOM(root, selector) {
+        #         // Check if root has shadow root
+        #         console.log('Checking element:', root.tagName, root.id, root.className);
+        #         console.log('Has shadowRoot property:', 'shadowRoot' in root);
+        #         console.log('shadowRoot value:', root.shadowRoot);
                 
-                # Check for human verification checkbox in shadow DOM
-                try:
-                    shadow_checkbox = find_element_in_shadow_dom("*", "input[type='checkbox']")
-                    if shadow_checkbox:
-                        return "shadow_checkbox"
-                except Exception:
-                    pass
-                
-                # Check for sign in link
-                try:
-                    sign_in = drv.find_element(By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
-                    if sign_in.is_displayed() and sign_in.is_enabled():
-                        return "sign_in"
-                except Exception:
-                    pass
-                
-                return False  # Keep waiting
+        #         if (root.shadowRoot && root.shadowRoot !== null) {
+        #             console.log('Shadow root found, searching for:', selector);
+        #             try {
+        #                 const element = root.shadowRoot.querySelector(selector);
+        #                 if (element) {
+        #                     console.log('Found element in shadow DOM:', element);
+        #                     return element;
+        #                 }
+                        
+        #                 // Recursively search inside shadow root
+        #                 const shadowElements = root.shadowRoot.querySelectorAll('*');
+        #                 console.log('Shadow elements found:', shadowElements.length);
+        #                 for (let shadowElement of shadowElements) {
+        #                     const result = findInShadowDOM(shadowElement, selector);
+        #                     if (result) return result;
+        #                 }
+        #             } catch (e) {
+        #                 console.log('Error accessing shadow root (likely closed):', e.message);
+        #                 return null;
+        #             }
+        #         } else {
+        #             console.log('No shadow root on this element');
+        #         }
+        #         return null;
+        #     }
             
-            result = WebDriverWait(driver, 10).until(either_condition)
+        #     console.log('Searching for shadow DOM element...');
+        #     console.log('Host selector:', arguments[0]);
+        #     console.log('Target selector:', arguments[1]);
             
-            if result == "checkbox":
-                # Human verification checkbox appeared first (regular DOM)
-                checkbox = driver.find_element(By.XPATH, "//input[@type='checkbox']")
-                checkbox.click()
-                logging.info("Clicked 'Verify you are human' checkbox")
+        #     const host = document.querySelector(arguments[0]);
+        #     console.log('Host element found:', host);
+            
+        #     if (host) {
+        #         return findInShadowDOM(host, arguments[1]);
+        #     }
+            
+        #     console.log('No element found');
+        #     return null;
+        #     """
+        #     result = driver.execute_script(script, host_selector, target_selector)
+        #     print(f"JavaScript result for {host_selector} -> {target_selector}: {result}")
+        #     return result
+        
+        # def click_element_in_shadow_dom(host_selector, target_selector):
+        #     """Click an element inside shadow DOM using JavaScript."""
+        #     script = """
+        #     const host = document.querySelector(arguments[0]);
+        #     if (host && host.shadowRoot) {
+        #         const element = host.shadowRoot.querySelector(arguments[1]);
+        #         if (element) {
+        #             element.click();
+        #             return true;
+        #         }
+        #     }
+        #     return false;
+        #     """
+        #     return driver.execute_script(script, host_selector, target_selector)
+        
+        # # Handle "Verify you are human" checkbox that may appear on first page load
+        # try:
+        #     # Wait for either human verification checkbox OR sign in link to appear
+        #     def either_condition(drv):
+        #         print('looking for either checkbox or sign in link')
+        #         # Check for human verification checkbox (regular DOM)
+        #         try:
+        #             checkbox = drv.find_element(By.XPATH, "//input[@type='checkbox']")
+        #             ## print entire page html
+        #             print(drv.page_source)
+        #             print('input' in drv.page_source)
+        #             if checkbox.is_displayed() and checkbox.is_enabled():
+        #                 return "checkbox"
+        #         except Exception:
+        #             pass
                 
-                # Wait for verification to complete (sign in link should appear)
-                WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
-                )
-                logging.info("Human verification completed - sign in link is now available")
-                
-            elif result == "shadow_checkbox":
-                # Human verification checkbox appeared first (shadow DOM)
-                success = click_element_in_shadow_dom("*", "input[type='checkbox']")
-                if success:
-                    logging.info("Clicked 'Verify you are human' checkbox in shadow DOM")
+        #         # Check for human verification checkbox in shadow DOM
+        #         try:
+        #             print('looking for shadow checkbox')
                     
-                    # Wait for verification to complete (sign in link should appear)
-                    WebDriverWait(driver, 10).until(
-                        EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
-                    )
-                    logging.info("Human verification completed - sign in link is now available")
-                else:
-                    logging.warning("Failed to click checkbox in shadow DOM")
+        #             # First, let's test if the function works at all by looking for any div
+        #             test_div = find_element_in_shadow_dom("*", "div")
+        #             print(f'Test div result: {test_div}')
                     
-            else:
-                # Sign in link appeared directly (no verification needed)
-                logging.info("No human verification needed - sign in link is available")
+        #             # Let's also do a simple check for any shadow roots
+        #             simple_shadow_check = """
+        #             const elementsWithShadow = [];
+        #             const allElements = document.querySelectorAll('*');
+                    
+        #             for (let element of allElements) {
+        #                 if ('shadowRoot' in element && element.shadowRoot !== null) {
+        #                     elementsWithShadow.push({
+        #                         tagName: element.tagName,
+        #                         id: element.id,
+        #                         className: element.className
+        #                     });
+        #                 }
+        #             }
+                    
+        #             console.log('Elements with shadow roots:', elementsWithShadow);
+        #             return elementsWithShadow;
+        #             """
+        #             shadow_check_result = driver.execute_script(simple_shadow_check)
+        #             print(f'Elements with shadow roots: {shadow_check_result}')
+                    
+        #             # Check for iframes that might contain shadow DOM
+        #             iframe_check = """
+        #             const iframes = document.querySelectorAll('iframe');
+        #             console.log('Found iframes:', iframes.length);
+        #             return iframes.length;
+        #             """
+        #             iframe_count = driver.execute_script(iframe_check)
+        #             print(f'Number of iframes: {iframe_count}')
+                    
+        #             # Let's also check what shadow DOM elements exist
+        #             shadow_elements_script = """
+        #             function findAllShadowRoots(element, depth = 0) {
+        #                 const results = [];
+                        
+        #                 if (element.shadowRoot) {
+        #                     results.push({
+        #                         element: element,
+        #                         depth: depth,
+        #                         tagName: element.tagName,
+        #                         id: element.id,
+        #                         className: element.className,
+        #                         shadowContent: element.shadowRoot.innerHTML.substring(0, 200) + '...'
+        #                     });
+                            
+        #                     // Recursively search inside shadow root
+        #                     const shadowElements = element.shadowRoot.querySelectorAll('*');
+        #                     for (let shadowElement of shadowElements) {
+        #                         results.push(...findAllShadowRoots(shadowElement, depth + 1));
+        #                     }
+        #                 }
+                        
+        #                 return results;
+        #             }
+                    
+        #             const allElements = document.querySelectorAll('*');
+        #             console.log('Total elements on page:', allElements.length);
+                    
+        #             const shadowElements = [];
+        #             for (let element of allElements) {
+        #                 shadowElements.push(...findAllShadowRoots(element));
+        #             }
+                    
+        #             console.log('Shadow DOM elements found:', shadowElements);
+        #             return shadowElements;
+        #             """
+        #             shadow_elements = driver.execute_script(shadow_elements_script)
+        #             print(f'Shadow DOM elements on page: {shadow_elements}')
+                    
+        #             # Let's also check for any elements with 'checkbox' in their attributes
+        #             checkbox_search_script = """
+        #             const checkboxes = [];
+        #             const allElements = document.querySelectorAll('*');
+                    
+        #             for (let element of allElements) {
+        #                 if (element.type === 'checkbox' || 
+        #                     element.getAttribute('type') === 'checkbox' ||
+        #                     element.innerHTML.toLowerCase().includes('checkbox') ||
+        #                     element.textContent.toLowerCase().includes('checkbox')) {
+        #                     checkboxes.push({
+        #                         tagName: element.tagName,
+        #                         id: element.id,
+        #                         className: element.className,
+        #                         type: element.type,
+        #                         innerHTML: element.innerHTML.substring(0, 100)
+        #                     });
+        #                 }
+        #             }
+                    
+        #             console.log('Checkbox-related elements found:', checkboxes);
+        #             return checkboxes;
+        #             """
+        #             checkbox_elements = driver.execute_script(checkbox_search_script)
+        #             print(f'Checkbox-related elements: {checkbox_elements}')
+                    
+        #             # Now try the checkbox
+        #             shadow_checkbox = find_element_in_shadow_dom("*", "input[type='checkbox']")
+        #             print(f'Shadow checkbox result: {shadow_checkbox}')
+                    
+        #             if shadow_checkbox:
+        #                 print('found shadow checkbox')
+        #                 print(shadow_checkbox)
+        #                 return "shadow_checkbox"
+                    
+        #             # If we can't access the shadow DOM, try alternative approaches
+        #             print('Trying alternative approaches for closed shadow DOM...')
+                    
+        #             # Try to find elements that might contain the checkbox
+        #             potential_hosts_script = """
+        #             const potentialHosts = [];
+        #             const allElements = document.querySelectorAll('*');
+                    
+        #             for (let element of allElements) {
+        #                 // Look for elements that might contain checkboxes
+        #                 if (element.innerHTML.toLowerCase().includes('verify') || 
+        #                     element.innerHTML.toLowerCase().includes('human') ||
+        #                     element.innerHTML.toLowerCase().includes('robot') ||
+        #                     element.innerHTML.toLowerCase().includes('captcha')) {
+        #                     potentialHosts.push({
+        #                         tagName: element.tagName,
+        #                         id: element.id,
+        #                         className: element.className,
+        #                         innerHTML: element.innerHTML.substring(0, 200)
+        #                     });
+        #                 }
+        #             }
+                    
+        #             return potentialHosts;
+        #             """
+        #             potential_hosts = driver.execute_script(potential_hosts_script)
+        #             print(f'Potential hosts for checkbox: {potential_hosts}')
+                    
+        #             # Try clicking on elements that might contain the checkbox
+        #             for host in potential_hosts:
+        #                 try:
+        #                     print(f'Trying to click on potential host: {host}')
+        #                     # Try to find and click this element
+        #                     element = driver.find_element(By.CSS_SELECTOR, f"{host['tagName'].lower()}#{host['id']}" if host['id'] else f"{host['tagName'].lower()}.{host['className']}")
+        #                     element.click()
+        #                     print(f'Clicked on {host["tagName"]}')
+        #                     return "shadow_checkbox"
+        #                 except Exception as e:
+        #                     print(f'Failed to click on {host["tagName"]}: {e}')
+        #                     continue
+                    
+        #             # Try using Selenium's built-in shadow DOM support (if available)
+        #             try:
+        #                 print('Trying Selenium shadow DOM support...')
+        #                 # This might work with newer Selenium versions
+        #                 shadow_hosts = driver.find_elements(By.CSS_SELECTOR, "*")
+        #                 for host in shadow_hosts:
+        #                     try:
+        #                         # Try to find checkbox using Selenium's shadow DOM support
+        #                         checkbox = host.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
+        #                         if checkbox.is_displayed() and checkbox.is_enabled():
+        #                             checkbox.click()
+        #                             print('Found and clicked checkbox using Selenium shadow DOM support')
+        #                             return "shadow_checkbox"
+        #                     except Exception:
+        #                         continue
+        #             except Exception as e:
+        #                 print(f'Selenium shadow DOM approach failed: {e}')
+                    
+        #             # Try clicking on the page to see if it triggers the checkbox
+        #             try:
+        #                 print('Trying to click on page to trigger checkbox...')
+        #                 driver.execute_script("document.body.click();")
+        #                 time_module.sleep(2)
+        #                 # Check if sign in link appeared after clicking
+        #                 try:
+        #                     sign_in = driver.find_element(By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
+        #                     if sign_in.is_displayed():
+        #                         print('Sign in link appeared after clicking page')
+        #                         return "sign_in"
+        #                 except Exception:
+        #                     pass
+        #             except Exception as e:
+        #                 print(f'Page click approach failed: {e}')
+                    
+        #         except Exception as e:
+        #             print(f'Exception in shadow DOM search: {e}')
+        #             pass
                 
-        except Exception as e:
-            logging.info(f"Error during human verification check: {e}")
+        #         # Check for sign in link
+        #         try:
+        #             sign_in = drv.find_element(By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
+        #             if sign_in.is_displayed() and sign_in.is_enabled():
+        #                 return "sign_in"
+        #         except Exception:
+        #             pass
+                
+        #         return False  # Keep waiting
+            
+        #     result = WebDriverWait(driver, 10).until(either_condition)
+            
+        #     if result == "checkbox":
+        #         # Human verification checkbox appeared first (regular DOM)
+        #         checkbox = driver.find_element(By.XPATH, "//input[@type='checkbox']")
+        #         checkbox.click()
+        #         logging.info("Clicked 'Verify you are human' checkbox")
+                
+        #         # Wait for verification to complete (sign in link should appear)
+        #         WebDriverWait(driver, 10).until(
+        #             EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
+        #         )
+        #         logging.info("Human verification completed - sign in link is now available")
+                
+        #     elif result == "shadow_checkbox":
+        #         # Human verification checkbox appeared first (shadow DOM)
+        #         success = click_element_in_shadow_dom("*", "input[type='checkbox']")
+        #         if success:
+        #             logging.info("Clicked 'Verify you are human' checkbox in shadow DOM")
+                    
+        #             # Wait for verification to complete (sign in link should appear)
+        #             WebDriverWait(driver, 10).until(
+        #                 EC.element_to_be_clickable((By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']"))
+        #             )
+        #             logging.info("Human verification completed - sign in link is now available")
+        #         else:
+        #             logging.warning("Failed to click checkbox in shadow DOM")
+                    
+        #     else:
+        #         # Sign in link appeared directly (no verification needed)
+        #         logging.info("No human verification needed - sign in link is available")
+                
+        # except Exception as e:
+        #     logging.info(f"Error during human verification check: {e}")
+        
+        # log page content
+        logging.info(f"Page content: {driver.page_source}")
+        
         
         # Click the Sign In link
+        logging.info("attempting clicking Sign In link")
         sign_in_link = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable(
                 (By.CSS_SELECTOR, "a[href='#/login'][ui-sref='login']")
