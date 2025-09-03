@@ -17,6 +17,7 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from utils import (
     AvailableSlot,
     create_driver,
+    navigate_with_uc,
     notify_about_new_openings,
 )
 
@@ -106,21 +107,25 @@ def wait_for_times_or_no_times(driver, timeout=20) -> list[WebElement]:
         logging.warning("Timed out waiting for time slots or 'no times' message.")
         return []
 
-def login_to_eazylinks(driver: WebDriver, course_config: CourseConfig, course_name: str) -> bool:
+def login_to_eazylinks(driver, course_config: CourseConfig, course_name: str) -> bool:
     """Login to eazylinks from /search."""
     try:
-        url = str(course_config.url)
-        driver.get(url)
-        logging.info(f"Navigated to {url}")
+        # Don't navigate again - we're already on the right page with UC mode
+        logging.info(f"Already on {str(course_config.url)} with UC mode, proceeding with login")
         time_module.sleep(10)
-        # print('going to click!')
-        # click_checkbox_at_coordinates(driver)
         
         # Wait for page to load completely
         WebDriverWait(driver, 10).until(
             lambda d: d.execute_script("return document.readyState") == "complete"
         )
         logging.info("Page loaded completely")
+        
+        # Rest of your login logic...
+        return True
+        
+    except Exception as e:
+        logging.error(f"Failed to login to {course_name}: {e}")
+        return False
         
         # # Helper function to find elements in shadow DOM
         # def find_element_in_shadow_dom(host_selector, target_selector):
@@ -496,12 +501,11 @@ def login_to_eazylinks(driver: WebDriver, course_config: CourseConfig, course_na
         logging.error(f"Failed to login to {course_name}: {e}")
         return False
 
-def login_to_foreupsoftware(driver: WebDriver, course_config: CourseConfig, course_name: str) -> bool:
+def login_to_foreupsoftware(driver, course_config: CourseConfig, course_name: str) -> bool:
     """Login to foreupsoftware and select NYS Resident status. Returns True if successful."""
     try:
-        url = str(course_config.url)
-        driver.get(url)
-        logging.info(f"Navigated to {url}")
+        # Don't navigate again - we're already on the right page with UC mode
+        logging.info(f"Already on {str(course_config.url)} with UC mode, proceeding with login")
         
         # Click login link
         log_in_link = driver.find_element(
@@ -928,16 +932,26 @@ class CourseManager:
     def initialize_driver(self) -> bool:
         """Initialize the driver and login if needed."""
         try:
-            self.driver = create_driver()            
+            self.driver = create_driver()
+            
+            # Navigate to the course URL using SeleniumBase UC mode
+            logging.info(f"Navigating to {self.course_config.url} with UC mode")
+            if not navigate_with_uc(self.driver, str(self.course_config.url)):
+                logging.error(f"Failed to navigate to {self.course_config.url}")
+                return False
+                
         except Exception as e:
             logging.error(f"Failed to initialize driver for {self.course_name}: {e}")
             return False
+            
         try:
+            # Handle login (without navigating again - we're already on the right page)
             self.handle_login()
             self.is_logged_in = True
         except Exception as e:
             logging.error(f"Failed to login for {self.course_name}: {e}")
             return False
+            
         logging.info(f"Successfully initialized driver for {self.course_name}")
         return True
     

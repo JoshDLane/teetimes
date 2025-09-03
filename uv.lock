@@ -902,6 +902,7 @@ dependencies = [
     { name = "requests" },
     { name = "selenium" },
     { name = "seleniumbase" },
+    { name = "undetected-chromedriver" },
 ]
 
 [package.metadata]
@@ -914,6 +915,7 @@ requires-dist = [
     { name = "requests" },
     { name = "selenium" },
     { name = "seleniumbase" },
+    { name = "undetected-chromedriver" },
 ]
 
 [[package]]
@@ -967,6 +969,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/f8/b1/0c11f5058406b3af7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/17/69/cd203477f944c353c31bade965f880aa1061fd6bf05ded0726ca845b6ff7/typing_inspection-0.4.1-py3-none-any.whl", hash = "sha256:389055682238f53b04f7badcb49b989835495a96700ced5dab2d8feae4b26f51", size = 14552 },
 ]
+
+[[package]]
+name = "undetected-chromedriver"
+version = "3.5.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+    { name = "selenium" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1f/98/7ab46625ce2317756e4e857fe6ac24b6378c3e8f477da26c95226ed8ccb7/undetected-chromedriver-3.5.5.tar.gz", hash = "sha256:9f945e1435005247abe17de316bcfda85b284a4177fd5f25167c78ced33b65ec", size = 65409 }
 
 [[package]]
 name = "urllib3"

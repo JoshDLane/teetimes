@@ -1,12 +1,13 @@
 import logging
 import os
 import threading
+import time
 from datetime import date, datetime
 from typing import Dict
 
 import requests
 from pydantic import BaseModel
-from selenium.webdriver import Chrome, Remote
+from selenium.webdriver import Remote
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chromium.remote_connection import (
     ChromiumRemoteConnection as Connection,
@@ -27,60 +28,83 @@ class Notification(BaseModel):
     date_times: list[datetime]
     url: str
 
-def create_driver():
-    # Set up Chrome options for headless mode
-    chrome_options = Options()
-    
-    # Add Bright Data Web Unlocker proxy configuration
-    if os.environ.get("PROXY_HOST") and os.environ.get("PROXY_PORT"):
-        # Use the working proxy configuration method
-        chrome_options.add_argument(f"--proxy-server={os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
-        
-        # Add proxy authentication using the working method
-        if os.environ.get("PROXY_USERNAME") and os.environ.get("PROXY_PASSWORD"):
-            chrome_options.add_argument(f"--proxy-auth={os.environ['PROXY_USERNAME']}:{os.environ['PROXY_PASSWORD']}")
-            
-        logging.info(f"Using proxy: {os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
-    
-    chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
-    chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
-    chrome_options.add_argument("--disable-extensions")  # Disable extensions
-    chrome_options.add_argument("--disable-plugins")  # Disable plugins
 
-    chrome_options.add_argument("--window-size=1920,1080")  # Full HD resolution
+def wait_for_cloudflare_challenge(driver, timeout=30):
+    """
+    Wait for Cloudflare challenge to complete and page to load properly.
     
-    # Check if using Bright Data Web Unlocker as remote server
+    Args:
+        driver: Selenium WebDriver instance
+        timeout: Maximum time to wait in seconds
+    
+    Returns:
+        bool: True if page loaded successfully, False if timeout
+    """
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            # Check if we're still on Cloudflare challenge page
+            page_source = driver.page_source.lower()
+            
+            if "just a moment" in page_source or "checking your browser" in page_source:
+                logging.info("Still on Cloudflare challenge page, waiting...")
+                time.sleep(2)
+                continue
+            
+            # Check if page has loaded properly (look for golf-related content)
+            if "golf" in page_source or "tee time" in page_source or "booking" in page_source:
+                logging.info("Page loaded successfully after Cloudflare challenge")
+                return True
+            
+            # If we get here, page might be loaded but we need to wait a bit more
+            time.sleep(1)
+            
+        except Exception as e:
+            logging.warning(f"Error while waiting for Cloudflare challenge: {e}")
+            time.sleep(1)
+    
+    logging.warning("Timeout waiting for Cloudflare challenge to complete")
+    return False
+
+
+def create_driver():
+    """
+    Create a driver with enhanced stealth capabilities.
+    Supports both SeleniumBase UC mode (local) and remote server (deployed).
+    """
+    # Check if remote server is available (deployed environment)
     if os.environ.get("REMOTE_SERVER"):
+        # Use remote server (your existing setup)
+        chrome_options = Options()
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-web-security")
+        
         connection = Connection(os.environ["REMOTE_SERVER"], "goog", "chrome")
         return Remote(connection, options=chrome_options)
-    # Check if browserless is available (deployed environment)
+        
+    # Check if browserless is available (alternative deployed environment)
     elif os.environ.get("BROWSER_TOKEN") and os.environ.get("BROWSER_WEBDRIVER_ENDPOINT"):
         # Use Browserless (deployed environment)
+        chrome_options = Options()
         chrome_options.set_capability("browserless:token", os.environ["BROWSER_TOKEN"])
-        chrome_options.add_argument("--headless=new")  # Enable headless mode
-        # Use Remote WebDriver to connect to Browserless
+        chrome_options.add_argument("--headless=new")
+        
         return Remote(
             command_executor=os.environ["BROWSER_WEBDRIVER_ENDPOINT"],
+            options=chrome_options,
         )
     else:
-        chrome_options.add_experimental_option(
-            "prefs",
-            {
-                "credentials_enable_service": False,
-                "profile.password_manager_enabled": False,
-                "profile.password_manager_leak_detection": False,
-            },
-        )
-            
-        chrome_options.add_argument("--no-sandbox")  # Bypass OS security model
-        chrome_options.add_argument("--disable-images")  # Disable images for faster loading
-        chrome_options.add_argument("--disable-web-security")  # Disable web security
-        chrome_options.add_argument("--disable-features=VizDisplayCompositor")  # Disable display compositor
-        chrome_options.add_argument(
-            "--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        )
-        # Use local Chrome WebDriver
-        return Chrome(options=chrome_options)
+        # Use SeleniumBase with UC mode for local development
+        from seleniumbase import Driver
+        driver = Driver(uc=True, headless=False, incognito=True)
+        return driver
     
     
 def send_notification_worker(notification: Notification):
@@ -188,3 +212,44 @@ def click_checkbox_at_coordinates(driver, x_offset=10, y_offset=162):
     actions.move_by_offset(-x, -y).perform()
     
     logging.info("Checkbox click simulated successfully")
+
+
+def navigate_with_uc(driver, url):
+    """
+    Navigate to URL with appropriate method based on driver type.
+    
+    Args:
+        driver: WebDriver instance (SeleniumBase or Remote)
+        url: URL to navigate to
+    
+    Returns:
+        bool: True if navigation successful, False otherwise
+    """
+    try:
+        # Check if this is a SeleniumBase driver (has UC methods)
+        if hasattr(driver, 'uc_open_with_reconnect'):
+            # Use SeleniumBase UC mode for local development
+            logging.info(f"Using SeleniumBase UC mode to navigate to {url}")
+            
+            # Open URL using UC mode with 6 second reconnect time
+            driver.uc_open_with_reconnect(url, reconnect_time=6)
+            
+            # Attempt to click the CAPTCHA checkbox if present
+            driver.uc_gui_click_captcha()
+            
+        else:
+            # Use regular navigation for remote drivers
+            logging.info(f"Using regular navigation for remote driver to {url}")
+            driver.get(url)
+        
+        # Wait for Cloudflare challenge to complete
+        if not wait_for_cloudflare_challenge(driver, timeout=30):
+            logging.error(f"Failed to bypass Cloudflare challenge for {url}")
+            return False
+            
+        logging.info(f"Successfully navigated to {url}")
+        return True
+        
+    except Exception as e:
+        logging.error(f"Failed to navigate to {url}: {e}")
+        return False
