@@ -33,13 +33,14 @@ def create_driver():
     
     # Add Bright Data Web Unlocker proxy configuration
     if os.environ.get("PROXY_HOST") and os.environ.get("PROXY_PORT"):
-        proxy_string = f"{os.environ.get('PROXY_TYPE', 'http')}://"
-        if os.environ.get("PROXY_USERNAME") and os.environ.get("PROXY_PASSWORD"):
-            proxy_string += f"{os.environ['PROXY_USERNAME']}:{os.environ['PROXY_PASSWORD']}@"
-        proxy_string += f"{os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}"
+        # Use the working proxy configuration method
+        chrome_options.add_argument(f"--proxy-server={os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
         
-        chrome_options.add_argument(f"--proxy-server={proxy_string}")
-        logging.info(f"Using proxy: {os.environ.get('PROXY_TYPE', 'http')}://{os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
+        # Add proxy authentication using the working method
+        if os.environ.get("PROXY_USERNAME") and os.environ.get("PROXY_PASSWORD"):
+            chrome_options.add_argument(f"--proxy-auth={os.environ['PROXY_USERNAME']}:{os.environ['PROXY_PASSWORD']}")
+            
+        logging.info(f"Using proxy: {os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
     
     chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
