@@ -31,12 +31,24 @@ def create_driver():
     # Set up Chrome options for headless mode
     chrome_options = Options()
     
+    # Add Bright Data Web Unlocker proxy configuration
+    if os.environ.get("PROXY_HOST") and os.environ.get("PROXY_PORT"):
+        proxy_string = f"{os.environ.get('PROXY_TYPE', 'http')}://"
+        if os.environ.get("PROXY_USERNAME") and os.environ.get("PROXY_PASSWORD"):
+            proxy_string += f"{os.environ['PROXY_USERNAME']}:{os.environ['PROXY_PASSWORD']}@"
+        proxy_string += f"{os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}"
+        
+        chrome_options.add_argument(f"--proxy-server={proxy_string}")
+        logging.info(f"Using proxy: {os.environ.get('PROXY_TYPE', 'http')}://{os.environ['PROXY_HOST']}:{os.environ['PROXY_PORT']}")
+    
     chrome_options.add_argument("--disable-dev-shm-usage")  # Overcome limited resource problems
     chrome_options.add_argument("--disable-gpu")  # Disable GPU hardware acceleration
     chrome_options.add_argument("--disable-extensions")  # Disable extensions
     chrome_options.add_argument("--disable-plugins")  # Disable plugins
 
     chrome_options.add_argument("--window-size=1920,1080")  # Full HD resolution
+    
+    # Check if using Bright Data Web Unlocker as remote server
     if os.environ.get("REMOTE_SERVER"):
         connection = Connection(os.environ["REMOTE_SERVER"], "goog", "chrome")
         return Remote(connection, options=chrome_options)
