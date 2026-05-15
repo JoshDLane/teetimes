@@ -32,7 +32,7 @@ class CourseConfig(BaseModel):
     latest_time: str = Field(default="16:00", pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")
     dates: Optional[List[str]] = Field(default=None)
     n_players: NPlayerOptions = Field(default=NPlayerOptions.ANY)
-    full_course_name: str = Field(default="Bethpage Black Course")
+    full_course_name: str = Field(default="Bethpage Red Course")
     
     @field_validator("dates", mode="before")
     def validate_dates(cls, v):
