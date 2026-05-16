@@ -19,7 +19,8 @@ def main():
         stats = tracker.get_stats()
         
         print("=== Notification Tracker Statistics ===")
-        print(f"Total notified slots: {stats['total_notified_slots']}")
+        print(f"Dedup key version: {stats['notified_slot_key_version']}")
+        print(f"Total notified slots (this version): {stats['total_notified_slots']}")
         print(f"Redis connected: {stats['redis_connected']}")
         
         # Show some Redis info
@@ -31,7 +32,7 @@ def main():
         # Optional: Show some example keys
         if stats['total_notified_slots'] > 0:
             print("\n=== Example Notified Slots ===")
-            pattern = "notified_slot:*"
+            pattern = f"notified_slot:v{stats['notified_slot_key_version']}:*"
             keys = tracker.redis_client.keys(pattern)
             for key in keys[:5]:  # Show first 5 keys
                 print(f"  {key}")

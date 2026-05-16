@@ -33,6 +33,8 @@ class CourseConfig(BaseModel):
     dates: Optional[List[str]] = Field(default=None)
     n_players: NPlayerOptions = Field(default=NPlayerOptions.ANY)
     full_course_name: str = Field(default="Bethpage Red Course")
+    # When set (same booking URL, multiple tee sheets), alternate each check cycle.
+    full_course_names: Optional[List[str]] = Field(default=None, min_length=1)
     
     @field_validator("dates", mode="before")
     def validate_dates(cls, v):
@@ -47,6 +49,12 @@ class CourseConfig(BaseModel):
             except ValueError:
                 raise ValueError(f"Invalid date format: '{day}'. Must be MM/DD.")
         return v
+
+    def resolved_schedule_names(self) -> List[str]:
+        """Visible option text(s) for ForeUp's schedule/course dropdown."""
+        if self.full_course_names:
+            return self.full_course_names
+        return [self.full_course_name]
 
 
 class CourseConfigs(RootModel):
@@ -180,18 +188,23 @@ def get_foreupsoftware_times(
     course_config: CourseConfig,
     earliest_time: time = datetime.strptime("7:00", "%H:%M").time(),
     latest_time: time = datetime.strptime("16:00", "%H:%M").time(),
+    schedule_course_name: Optional[str] = None,
+    slot_course_label: Optional[str] = None,
 ) -> list[AvailableSlot]:
     """Get available times for Bethpage Black Course for a specific date."""
     available_slots: list[AvailableSlot] = []
-    logging.info(f"Getting times for {course_name} on {date_checking}")
+    resolved = course_config.resolved_schedule_names()
+    schedule_pick = schedule_course_name or resolved[0]
+    slot_label = slot_course_label or course_name
+    logging.info(f"Getting times for {course_name} ({schedule_pick}) on {date_checking}")
     try:
-        # Select black course
+        # Select course in schedule dropdown
         course_selector = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "schedule_select"))
         )
         select = Select(course_selector)
-        select.select_by_visible_text(course_config.full_course_name)
-        logging.info(f"Selected {course_config.full_course_name}")
+        select.select_by_visible_text(schedule_pick)
+        logging.info(f"Selected {schedule_pick}")
         
         # Enter date
         date_input = driver.find_element(By.NAME, 'date')
@@ -229,7 +242,7 @@ def get_foreupsoftware_times(
                     # Create a datetime by combining the date and time
                     slot_datetime = datetime.combine(date_checking, slot_time)
                     available_slots.append(
-                        AvailableSlot(datetime=slot_datetime, course=course_name)
+                        AvailableSlot(datetime=slot_datetime, course=slot_label)
                     )
                     logging.info(f"Found available slot at {time_text}")
             except ValueError as e:
@@ -253,6 +266,7 @@ def check_slots_for_course(
     course_name: str,
     course_config: CourseConfig,
     date_checking: date,
+    schedule_course_name: Optional[str] = None,
 ) -> list[AvailableSlot]:
     """
     Checks available slots for a specific course and date.
@@ -269,6 +283,9 @@ def check_slots_for_course(
     site_parser = site_parsers[course_name]
     earliest_time = datetime.strptime(course_config.earliest_time, "%H:%M").time()
     latest_time = datetime.strptime(course_config.latest_time, "%H:%M").time()
+    resolved = course_config.resolved_schedule_names()
+    pick = schedule_course_name or resolved[0]
+    slot_label = pick if len(resolved) > 1 else course_name
     
     available_slots = site_parser(
         driver,
@@ -277,6 +294,8 @@ def check_slots_for_course(
         course_config,
         earliest_time,
         latest_time,
+        schedule_course_name=pick,
+        slot_course_label=slot_label,
     )
     
     if available_slots:
@@ -332,6 +351,7 @@ class CourseManager:
         self.running = False
         self.max_session_duration = 300  # 5 minutes in seconds
         self.session_start_time = None
+        self._schedule_alternation_index = 0
 
     def handle_login(self) -> bool:
         """Handle login for a course."""
@@ -388,7 +408,14 @@ class CourseManager:
             return
         
         dates_to_check = get_dates_to_check(self.course_config)
-        logging.info(f"Checking {self.course_name} for {len(dates_to_check)} dates: {[d.strftime('%m/%d') for d in dates_to_check]}")
+        schedule_names = self.course_config.resolved_schedule_names()
+        schedule_pick = schedule_names[
+            self._schedule_alternation_index % len(schedule_names)
+        ]
+        self._schedule_alternation_index += 1
+        logging.info(
+            f"Checking {self.course_name} (schedule: {schedule_pick}) for {len(dates_to_check)} dates: {[d.strftime('%m/%d') for d in dates_to_check]}"
+        )
         
         for check_date in dates_to_check:
             try:
@@ -398,6 +425,7 @@ class CourseManager:
                     self.course_name,
                     self.course_config,
                     check_date,
+                    schedule_course_name=schedule_pick,
                 )
                 
                 if available_slots:
@@ -423,6 +451,7 @@ class CourseManager:
                                 self.course_name,
                                 self.course_config,
                                 check_date,
+                                schedule_course_name=schedule_pick,
                             )
                             if available_slots:
                                 logging.info(

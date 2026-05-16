@@ -5,6 +5,20 @@ from typing import Optional
 
 import redis
 
+# Bump this integer (or set env NOTIFIED_SLOT_KEY_VERSION) to forget all prior
+# "already notified" slots so the same tee times can trigger alerts again.
+_DEFAULT_NOTIFIED_KEY_VERSION = 1
+NOTIFIED_SLOT_KEY_VERSION = int(
+    os.environ.get(
+        "NOTIFIED_SLOT_KEY_VERSION",
+        str(_DEFAULT_NOTIFIED_KEY_VERSION),
+    )
+)
+
+
+def _notified_slot_key_pattern() -> str:
+    return f"notified_slot:v{NOTIFIED_SLOT_KEY_VERSION}:*"
+
 
 class NotificationTracker:
     """Tracks notified slots using Redis with automatic cleanup after 7 days."""
@@ -29,7 +43,7 @@ class NotificationTracker:
     
     def _generate_slot_key(self, course: str, slot_datetime: datetime) -> str:
         """Generate a unique key for a slot."""
-        return f"notified_slot:{course}:{slot_datetime.isoformat()}"
+        return f"notified_slot:v{NOTIFIED_SLOT_KEY_VERSION}:{course}:{slot_datetime.isoformat()}"
     
     def is_slot_notified(self, course: str, slot_datetime: datetime) -> bool:
         """Check if a slot has already been notified about."""
@@ -47,14 +61,12 @@ class NotificationTracker:
     
     def get_notified_slots_count(self) -> int:
         """Get the total number of notified slots currently tracked."""
-        pattern = "notified_slot:*"
-        keys = self.redis_client.keys(pattern)
+        keys = self.redis_client.keys(_notified_slot_key_pattern())
         return len(keys)
     
     def cleanup_old_slots(self, days_old: int = 7) -> int:
         """Manually cleanup slots older than specified days (optional, Redis TTL handles this automatically)."""
-        pattern = "notified_slot:*"
-        keys = self.redis_client.keys(pattern)
+        keys = self.redis_client.keys(_notified_slot_key_pattern())
         cutoff_time = datetime.now() - timedelta(days=days_old)
         cleaned_count = 0
         
@@ -76,11 +88,11 @@ class NotificationTracker:
     
     def get_stats(self) -> dict:
         """Get statistics about the notification tracker."""
-        pattern = "notified_slot:*"
-        keys = self.redis_client.keys(pattern)
+        keys = self.redis_client.keys(_notified_slot_key_pattern())
         
         stats = {
             "total_notified_slots": len(keys),
+            "notified_slot_key_version": NOTIFIED_SLOT_KEY_VERSION,
             "redis_connected": self.redis_client.ping(),
             "redis_info": self.redis_client.info()
         }

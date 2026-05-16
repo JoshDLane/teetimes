@@ -4,6 +4,7 @@
     "allowed_days_in_advance": 7,
     "earliest_time": "7:00",
     "latest_time": "19:00",
-    "dates": ["6/17"]
+    "dates": ["6/17"],
+    "full_course_names": ["Bethpage Black Course", "Bethpage Red Course"]
   }
 }
